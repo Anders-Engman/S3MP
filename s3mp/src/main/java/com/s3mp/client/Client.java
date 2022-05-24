@@ -7,6 +7,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 // import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
@@ -56,7 +59,19 @@ public class Client {
                         System.out.println(interruptedException);
                     }
                 } else if ("quit".equalsIgnoreCase(userInput)) {
+                    
                     break;
+
+                } else if ("ping".equalsIgnoreCase(userInput)) {
+
+                    Boolean serverAvailable = pingServer("127.0.0.1", 8080, 2000);
+
+                    if (serverAvailable) {
+                        System.out.println("S3MP Server Available.");
+                    } else {
+                        System.out.println("S3MP Server Unavailable.");
+                    }
+
                 } else {
                     System.out.println("Command Not Recognized. Please check spelling and syntax.");
                 }
@@ -99,6 +114,19 @@ public class Client {
             System.out.println(inputLine);
 
         bufferedReader.close();
+    }
+
+    public static boolean pingServer(String host, int port, int timeout) throws IOException {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, port), timeout);
+            return true;
+        } catch (IOException e) {
+            // Either timeout or unreachable or failed DNS lookup.
+            return false; 
+        }
+        // boolean reachable = InetAddress.getByName("127.0.0.1").isReachable(10000);
+        
+        // return reachable;
     }
 
     public void login() throws IOException, InterruptedException {
