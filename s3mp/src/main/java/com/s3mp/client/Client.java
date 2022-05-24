@@ -59,7 +59,7 @@ public class Client {
                         System.out.println(interruptedException);
                     }
                 } else if ("quit".equalsIgnoreCase(userInput)) {
-                    
+
                     break;
 
                 } else if ("ping".equalsIgnoreCase(userInput)) {
@@ -121,17 +121,14 @@ public class Client {
             socket.connect(new InetSocketAddress(host, port), timeout);
             return true;
         } catch (IOException e) {
-            // Either timeout or unreachable or failed DNS lookup.
+
             return false; 
         }
-        // boolean reachable = InetAddress.getByName("127.0.0.1").isReachable(10000);
-        
-        // return reachable;
     }
 
     public void login() throws IOException, InterruptedException {
-        String username = "User";
-        String password = "Pass";
+        String username = "JohnGeneric";
+        String password = "pass";
         // Scanner credentialsScanner = new Scanner(System.in);
 
         // System.out.println("Please Input Username: ");

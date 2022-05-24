@@ -34,10 +34,6 @@ public class CoreSoftware {
         return this.fileSize;
     }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
     public void setVersionNumber(Float versionNumber) {
         this.versionNumber = versionNumber;
     }

@@ -5,9 +5,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.s3mp.sqlite.CoreSoftware;
+import com.s3mp.sqlite.User;
 
 import org.hibernate.TypeMismatchException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +31,9 @@ public class S3mpController {
 
 	@Autowired
 	CoreSoftwareService coreSoftwareService;
+
+	@Autowired
+	UserService userService;
 
 	@GetMapping("/versions")
 	public List<CoreSoftware> getCoreSoftwareVersions() {
@@ -74,16 +79,35 @@ public class S3mpController {
 	@PostMapping(path = "/login", 
         consumes = MediaType.APPLICATION_JSON_VALUE, 
         produces = MediaType.APPLICATION_JSON_VALUE)
-	// public void credentials(@RequestBody String requestBody) {
 	public ResponseEntity<String> login(@RequestBody Map<String, String> body) {
 
-		// System.out.println(body.get("username"));
-		// System.out.println(body.get("password"));
+		// if ("JohnGeneric".equals(body.get("username")) && ("Pass").equals(body.get("password"))) {
+		// 	System.out.println("Login Successful. Welcome " + body.get("username"));
+		// }
 
-		if ("User".equals(body.get("username")) && ("Pass").equals(body.get("password"))) {
-			System.out.println("Login Successful. Welcome " + body.get("username"));
+		Optional<User> targetUser = null;
+
+		ArrayList<User> userList = (ArrayList<User>) userService.findAll();
+
+		try {
+			targetUser = userList.stream()
+					.filter(p -> p.getUsername().equals(body.get("username")))
+					.findAny();
+		} catch (Exception exception) {
+			System.out.println("Error Finding User");
 		}
 
-		return new ResponseEntity<>("Hello", HttpStatus.OK);
+		if (targetUser != null && body.get("password").equals(targetUser.get().getPassword())) {
+			System.out.println("Login Successful. Welcome " + body.get("username"));
+			return new ResponseEntity<>(HttpStatus.ACCEPTED);
+		} else {
+			System.out.println("Login Unsuccessful. Please Contact your Administrator");
+			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+		}
     }
+
+	@GetMapping("/users")
+	public List<User> getUsers() {
+		return (List<User>) userService.findAll();
+	}
 }
