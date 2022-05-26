@@ -22,11 +22,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
+@RequestMapping("/v1")
 public class S3mpController {
 
 	@Autowired
@@ -39,6 +41,9 @@ public class S3mpController {
 	public List<CoreSoftware> getCoreSoftwareVersions() {
 		return (List<CoreSoftware>) coreSoftwareService.findAll();
 	}
+	// public ArrayList<CoreSoftware> getCoreSoftwareVersions() {
+	// 	return (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
+	// }
 
 	// @CrossOrigin(origins = "http://localhost:8089")    
     @GetMapping(value = "/{id}")
@@ -56,9 +61,9 @@ public class S3mpController {
 
 		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
 
-		for (CoreSoftware coreSoftware : currentSoftwareVersionsOnServer) {
-			System.out.println(coreSoftware.getVersionNumber());
-		}
+		// for (CoreSoftware coreSoftware : currentSoftwareVersionsOnServer) {
+		// 	System.out.println(coreSoftware.getVersionNumber());
+		// }
 
 		CoreSoftware latestCoreSoftware = currentSoftwareVersionsOnServer.stream().max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
 
@@ -81,27 +86,23 @@ public class S3mpController {
         produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<String> login(@RequestBody Map<String, String> body) {
 
-		// if ("JohnGeneric".equals(body.get("username")) && ("Pass").equals(body.get("password"))) {
-		// 	System.out.println("Login Successful. Welcome " + body.get("username"));
-		// }
-
 		Optional<User> targetUser = null;
 
 		ArrayList<User> userList = (ArrayList<User>) userService.findAll();
 
 		try {
 			targetUser = userList.stream()
-					.filter(p -> p.getUsername().equals(body.get("username")))
+					.filter(u -> u.getUsername().equals(body.get("username")))
 					.findAny();
 		} catch (Exception exception) {
 			System.out.println("Error Finding User");
 		}
 
-		if (targetUser != null && body.get("password").equals(targetUser.get().getPassword())) {
-			System.out.println("Login Successful. Welcome " + body.get("username"));
+		if (targetUser.isPresent() && body.get("password").equals(targetUser.get().getPassword())) {
+			// return new ResponseEntity<>("Login Successful. Welcome " + body.get("username"), HttpStatus.ACCEPTED);
 			return new ResponseEntity<>(HttpStatus.ACCEPTED);
 		} else {
-			System.out.println("Login Unsuccessful. Please Contact your Administrator");
+			// return new ResponseEntity<>("Login Unsuccessful. Please Contact your Administrator", HttpStatus.UNAUTHORIZED);
 			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
 		}
     }

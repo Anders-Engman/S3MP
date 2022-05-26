@@ -32,19 +32,19 @@ public class Client {
     // TODO: Add in Versioning
     private String s3mpVersion;
 
-    public Client(String serverAddress) {
+    public Client(String serverAddress, String s3mpVersion) {
 
         scanner = new Scanner(System.in);
-        this.serverAddress = serverAddress;
+        this.serverAddress = serverAddress + "/" + s3mpVersion;
 
         System.out.println("\n");
-        System.out.println("S3MP Client Session Initialized...");
-        System.out.println("Please input a Command:");
+        System.out.println("S3MP " + s3mpVersion + " Client Session Initialized...");
 
         String userInput = " ";
 
         while (!"Quit".equalsIgnoreCase(userInput)) {
 
+            System.out.println("Please input a Command:");
             userInput = scanner.nextLine();
 
             try {
@@ -72,12 +72,15 @@ public class Client {
                         System.out.println("S3MP Server Unavailable.");
                     }
 
-                } else {
-                    System.out.println("Command Not Recognized. Please check spelling and syntax.");
-                }
+                } 
+                // else {
+                //     System.out.println("Command Not Recognized. Please check spelling and syntax.");
+                // }
             } catch (IOException ioException) {
                 System.out.println(ioException);
             }
+
+            System.out.println("");
         }
 
         System.out.println("S3MP Client Session Terminated.");
@@ -93,10 +96,18 @@ public class Client {
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
 
         String inputLine;
+        String versionString = "";
 
-        while ((inputLine = bufferedReader.readLine()) != null) 
+        while ((inputLine = bufferedReader.readLine()) != null) {
             System.out.println(inputLine);
 
+            if (inputLine != null) {
+                versionString = inputLine;
+            }
+        }
+
+        System.out.println("Hello " + versionString);
+            
         bufferedReader.close();
     }
 
@@ -129,14 +140,12 @@ public class Client {
     public void login() throws IOException, InterruptedException {
         String username = "JohnGeneric";
         String password = "pass";
-        // Scanner credentialsScanner = new Scanner(System.in);
 
-        // System.out.println("Please Input Username: ");
-        // username = credentialsScanner.nextLine();
-        // System.out.println("Please Input Password: ");
-        // password = credentialsScanner.nextLine();
-        // credentialsScanner.close();
-        // String putEndpoint = this.serverAddress + "/login";
+        System.out.println("");
+        System.out.println("Please Input Username: ");
+        username = scanner.nextLine();
+        System.out.println("Please Input Password: ");
+        password = scanner.nextLine();
 
         URL url = new URL(this.serverAddress + "/login");
         HttpURLConnection http = (HttpURLConnection)url.openConnection();
@@ -162,6 +171,6 @@ public class Client {
 
     
     public static void main(String[] args) throws Exception {
-        Client client = new Client("http://localhost:8080");
+        Client client = new Client("http://localhost:8080", "v1");
     }
 }

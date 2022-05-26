@@ -16,7 +16,7 @@ public class User {
 
     private String password;
 
-    private Boolean isExperimental;
+    private String role;
 
     public Integer getId() {
         return this.id;
@@ -30,8 +30,8 @@ public class User {
         return this.password;
     }
 
-    public Boolean getExperimentalStatus() {
-        return this.isExperimental;
+    public String getRole() {
+        return this.role;
     }
 
     public void setUsername(String username) {
@@ -42,7 +42,7 @@ public class User {
         this.password = password;
     }
 
-    public void setExperimentalStatus(Boolean isExperimental) {
-        this.isExperimental = isExperimental;
+    public void setRole(String role) {
+        this.role = role;
     }
 }
