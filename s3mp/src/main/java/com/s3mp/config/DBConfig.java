@@ -19,7 +19,7 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 
 @Configuration
 // @EnableJpaRepositories(basePackages = "com.")
-@PropertySource("application.properties")
+// @PropertySource("application.properties")
 public class DBConfig {
     
         @Autowired
@@ -61,7 +61,7 @@ public class DBConfig {
     
     @Configuration
     @Profile("sqlite")
-    @PropertySource("classpath:application.properties")
+    // @PropertySource("classpath:application.properties")
     class SqliteConfig {
     }
 }

@@ -97,6 +97,7 @@ public class Client {
 
         String inputLine;
         String versionString = "";
+        
 
         while ((inputLine = bufferedReader.readLine()) != null) {
             System.out.println(inputLine);
