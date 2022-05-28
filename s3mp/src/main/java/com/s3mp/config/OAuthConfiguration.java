@@ -34,7 +34,7 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
     @Value("${s3mp.oauth.refreshTokenValidity}")
     private int refreshTokenValiditySeconds;
 
-    @Value("${s3mp.oauth.grantTypes:password}")
+    @Value("${s3mp.oauth.grantTypes:password, refresh_token}")
     private String[] authorizedGrantTypes;
 
     public OAuthConfiguration(AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder, UserDetailsService userService) {

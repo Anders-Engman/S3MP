@@ -7,7 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import com.s3mp.config.OAuthUserService;
 import com.s3mp.sqlite.CoreSoftware;
 import com.s3mp.sqlite.User;
 
@@ -16,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,9 +41,21 @@ public class S3mpController {
 	@Autowired
 	UserService userService;
 
-	@GetMapping("/versions")
-	public List<CoreSoftware> getCoreSoftwareVersions() {
-		return (List<CoreSoftware>) coreSoftwareService.findAll();
+	@Autowired
+	OAuthUserService oAuthUserService;
+
+	@GetMapping("/versions/{role}")
+	public List<CoreSoftware> getCoreSoftwareVersions(@PathVariable String role) {
+		
+		List<CoreSoftware> coreSoftwareOnServer = (List<CoreSoftware>) coreSoftwareService.findAll();
+
+		if ("EXPERIMENTAL".equals(role)) {
+			return (List<CoreSoftware>) coreSoftwareService.findAll();
+		} else {
+			return (List<CoreSoftware>) coreSoftwareOnServer.stream()
+			.filter(cs -> cs.getStability().equals(true))
+			.collect(Collectors.toList());
+		}
 	}
 	// public ArrayList<CoreSoftware> getCoreSoftwareVersions() {
 	// 	return (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
@@ -61,10 +77,6 @@ public class S3mpController {
 
 		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
 
-		// for (CoreSoftware coreSoftware : currentSoftwareVersionsOnServer) {
-		// 	System.out.println(coreSoftware.getVersionNumber());
-		// }
-
 		CoreSoftware latestCoreSoftware = currentSoftwareVersionsOnServer.stream().max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
 
 		try {
@@ -81,10 +93,51 @@ public class S3mpController {
 		return map;
 	}
 
-	@PostMapping(path = "/login", 
-        consumes = MediaType.APPLICATION_JSON_VALUE, 
-        produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<String> login(@RequestBody Map<String, String> body) {
+	// Change this to point at the oauth/token endpoint and accept a grant_type field
+	// may need to also accept refresh_token depending
+	// Spring Security handles this automatically
+	// @PostMapping(path = "/login", 
+    //     consumes = MediaType.APPLICATION_JSON_VALUE, 
+    //     produces = MediaType.APPLICATION_JSON_VALUE)
+	// public ResponseEntity<String> login(@RequestBody Map<String, String> body) {
+
+	// 	Optional<User> targetUser = null;
+
+	// 	ArrayList<User> userList = (ArrayList<User>) userService.findAll();
+
+	// 	try {
+	// 		targetUser = userList.stream()
+	// 				.filter(u -> u.getUsername().equals(body.get("username")))
+	// 				.findAny();
+	// 	} catch (Exception exception) {
+	// 		System.out.println("Error Finding User");
+	// 	}
+
+	// 	if (targetUser.isPresent()) {
+	// 		UserDetails userDetails = oAuthUserService.loadUserByUsername(targetUser.get().getUsername());
+
+	// 		System.out.println("HelLoooo");
+	// 		System.out.println(userDetails);
+	// 	}
+
+	// 	if (targetUser.isPresent() && body.get("password").equals(targetUser.get().getPassword())) {
+	// 		// return new ResponseEntity<>("Login Successful. Welcome " + body.get("username"), HttpStatus.ACCEPTED);
+	// 		return new ResponseEntity<>(HttpStatus.ACCEPTED);
+	// 	} else {
+	// 		// return new ResponseEntity<>("Login Unsuccessful. Please Contact your Administrator", HttpStatus.UNAUTHORIZED);
+	// 		return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+	// 	}
+    // }
+
+	// @GetMapping("/users")
+	// public List<User> getUsers() {
+	// 	return (List<User>) userService.findAll();
+	// }
+
+	@GetMapping("/roles/{username}")
+	public String getRole(@PathVariable String username) {
+
+		String role = "Role Not Found";
 
 		Optional<User> targetUser = null;
 
@@ -92,23 +145,16 @@ public class S3mpController {
 
 		try {
 			targetUser = userList.stream()
-					.filter(u -> u.getUsername().equals(body.get("username")))
+					.filter(u -> u.getUsername().equals(username))
 					.findAny();
 		} catch (Exception exception) {
 			System.out.println("Error Finding User");
 		}
 
-		if (targetUser.isPresent() && body.get("password").equals(targetUser.get().getPassword())) {
-			// return new ResponseEntity<>("Login Successful. Welcome " + body.get("username"), HttpStatus.ACCEPTED);
-			return new ResponseEntity<>(HttpStatus.ACCEPTED);
-		} else {
-			// return new ResponseEntity<>("Login Unsuccessful. Please Contact your Administrator", HttpStatus.UNAUTHORIZED);
-			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+		if (targetUser.isPresent()) {
+			role = targetUser.get().getRole();
 		}
-    }
 
-	@GetMapping("/users")
-	public List<User> getUsers() {
-		return (List<User>) userService.findAll();
+		return role;
 	}
 }

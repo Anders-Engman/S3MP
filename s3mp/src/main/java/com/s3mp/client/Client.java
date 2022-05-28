@@ -9,20 +9,15 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.Socket;
 // import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-// import java.net.http.HttpClient;
-// import java.net.http.HttpRequest;
-// import java.net.http.HttpResponse;
+import java.net.URLEncoder;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.Scanner;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 
 public class Client {
@@ -31,6 +26,9 @@ public class Client {
     private String serverAddress;
     // TODO: Add in Versioning
     private String s3mpVersion;
+    private String accessToken;
+    private String refreshToken;
+    private String userRole;
 
     public Client(String serverAddress, String s3mpVersion) {
 
@@ -49,7 +47,7 @@ public class Client {
 
             try {
                 if ("versions".equalsIgnoreCase(userInput)) {
-                    getVersions();
+                    getVersions(this.userRole);
                 } else if ("uptodate".equalsIgnoreCase(userInput)) {
                     checkIfUpToDate();
                 } else if ("login".equalsIgnoreCase(userInput)) {
@@ -73,6 +71,9 @@ public class Client {
                     }
 
                 } 
+                // else if ("users".equals(userInput)) {
+                //     getUsers();
+                // }
                 // else {
                 //     System.out.println("Command Not Recognized. Please check spelling and syntax.");
                 // }
@@ -87,30 +88,59 @@ public class Client {
 
     }
 
-    public void getVersions() throws IOException {
+    public void initiateDownload(String version) {
 
-        URL url = new URL(this.serverAddress + "/versions");
+    }
 
+    public void getVersions(String role) throws IOException {
+
+        URL url = new URL(this.serverAddress + "/versions/" + role);
+
+        // HttpURLConnection http = (HttpURLConnection) url.openConnection();
         URLConnection urlConnection = url.openConnection();
+        // http.setRequestMethod("GET");
+        // http.setRequestProperty("Accept", "application/json");
+        // http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+        
+        // System.out.println(http.getResponseCode() + " " + http.getResponseMessage());
+        // http.disconnect();
 
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
 
         String inputLine;
         String versionString = "";
-        
 
-        while ((inputLine = bufferedReader.readLine()) != null) {
-            System.out.println(inputLine);
+        StringBuilder strBuilder = new StringBuilder();
 
-            if (inputLine != null) {
-                versionString = inputLine;
-            }
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            strBuilder.append(line);
+            System.out.println(line);
         }
 
-        System.out.println("Hello " + versionString);
+        // TODO: Clean up printing of versions
+        HashMap<String, String> versionMap = convertTokenResponseToHashMap(strBuilder.toString());
+
+        // System.out.println(versionMap);
             
         bufferedReader.close();
     }
+
+    // public void getUsers() throws IOException {
+
+    //     URL url = new URL(this.serverAddress + "/users");
+
+    //     URLConnection urlConnection = url.openConnection();
+
+    //     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+
+    //     String inputLine;
+
+    //     while ((inputLine = bufferedReader.readLine()) != null) 
+    //         System.out.println(inputLine);
+
+    //     bufferedReader.close();
+    // }
 
     public void checkIfUpToDate() throws IOException {
 
@@ -138,31 +168,89 @@ public class Client {
         }
     }
 
+    // To get token, add "Grant_type: password" to user and pass. point at oauth/token
+    // Save both Auth and Refresh token locally. Send Auth in all requests and Refresh only in Refresh flow
+    // When using refresh to get new auth token, you'll get a new refresh token as well, save both locally
     public void login() throws IOException, InterruptedException {
-        String username = "JohnGeneric";
-        String password = "pass";
+        try {
+            String username = " ";
+            String password = " ";
 
-        System.out.println("");
-        System.out.println("Please Input Username: ");
-        username = scanner.nextLine();
-        System.out.println("Please Input Password: ");
-        password = scanner.nextLine();
+            System.out.println("");
+            System.out.println("Please Input Username: ");
+            username = scanner.nextLine();
+            System.out.println("Please Input Password: ");
+            password = scanner.nextLine();
 
-        URL url = new URL(this.serverAddress + "/login");
-        HttpURLConnection http = (HttpURLConnection)url.openConnection();
-        http.setRequestMethod("POST");
-        http.setDoOutput(true);
-        http.setRequestProperty("Content-Type", "application/json");
+            URL url = new URL("http://localhost:8080/oauth/token");
+            HttpURLConnection http = (HttpURLConnection)url.openConnection();
+            String authHeader = "Basic " + new String(Base64.getEncoder().encode("s3mp:secret".getBytes()));
+            http.setRequestMethod("POST");
+            http.setDoOutput(true);
+            http.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            http.setRequestProperty("Authorization", authHeader);
 
-        String data = "{\n  \"username\": " + "\"" + username + "\"" + ", \n  \"password\": " + "\"" + password + "\"" + "\n}";
+            String grant_type = URLEncoder.encode("password", "UTF-8");
+            String client_id = URLEncoder.encode("s3mp", "UTF-8");
+            String client_secret = URLEncoder.encode("secret", "UTF-8");
 
-        byte[] out = data.getBytes(StandardCharsets.UTF_8);
+            String postDataParams = "grant_type=" + grant_type + 
+                                    "&client_id=" + client_id + 
+                                    "&client_secret=" + client_secret +
+                                    "&username=" + username +
+                                    "&password=" + password;
 
-        OutputStream stream = http.getOutputStream();
-        stream.write(out);
+            byte[] out = postDataParams.getBytes(StandardCharsets.UTF_8);
 
-        System.out.println(http.getResponseCode() + " " + http.getResponseMessage());
-        http.disconnect();
+            OutputStream stream = http.getOutputStream();
+            stream.write(out);
+
+            //Read response
+            StringBuilder strBuilder = new StringBuilder();
+            BufferedReader br = new BufferedReader(new InputStreamReader(http.getInputStream()));
+
+            String line;
+            while ((line = br.readLine()) != null) {
+                strBuilder.append(line);
+            }
+
+            HashMap<String, String> tokenMap = convertTokenResponseToHashMap(strBuilder.toString());
+
+            // System.out.println(tokenMap.get(tokenMap.keySet().toArray()[0]));
+            // System.out.println(tokenMap.get(tokenMap.keySet().toArray()[5]));
+
+            this.refreshToken = tokenMap.get(tokenMap.keySet().toArray()[0]);
+
+            this.accessToken = tokenMap.get(tokenMap.keySet().toArray()[5]);
+
+            System.out.println(this.accessToken);
+
+            System.out.println(http.getResponseCode() + " " + http.getResponseMessage());
+
+            http.disconnect();
+
+            this.userRole = getRole(username);
+
+        } catch (IOException exception) {
+            exception.printStackTrace();
+        }
+    }
+
+    public String getRole(String username) throws MalformedURLException, IOException {
+
+        URL url = new URL(this.serverAddress + "/roles/" + username);
+
+        URLConnection urlConnection = url.openConnection();
+
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+        StringBuilder strBuilder = new StringBuilder();
+
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            strBuilder.append(line);
+        }
+
+        return strBuilder.toString();
     }
 
     public void validateDownload() throws IOException {
@@ -170,7 +258,21 @@ public class Client {
         //    Example: String sha256hex = Hashing.sha256().hashString(originalString, StandardCharsets.UTF_8).toString();
     }
 
-    
+    public HashMap<String, String> convertTokenResponseToHashMap(String response) {
+
+        HashMap<String, String> tokenMap = new HashMap<>();
+
+        String[] stringArr = response.replaceAll("[\\{\\}\\s]", "").split(",");
+
+        String[] keyValueStringArray;
+
+        for (String str : stringArr) {
+            keyValueStringArray = str.split(":");
+            tokenMap.put(keyValueStringArray[0], keyValueStringArray[1]);
+        }
+
+        return tokenMap;
+    }
     public static void main(String[] args) throws Exception {
         Client client = new Client("http://localhost:8080", "v1");
     }
