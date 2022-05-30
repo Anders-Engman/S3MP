@@ -12,17 +12,19 @@ public class CoreSoftware {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
 
-    private Float versionNumber;
+    private Double versionNumber;
 
     private Boolean stable;
 
-    private Float fileSize;
+    private Double fileSize;
+
+    private String contents;
 
     public Integer getId() {
         return this.id;
     }
 
-    public Float getVersionNumber() {
+    public Double getVersionNumber() {
         return this.versionNumber;
     }
 
@@ -30,11 +32,15 @@ public class CoreSoftware {
         return this.stable;
     }
 
-    public Float getFileSize() {
+    public Double getFileSize() {
         return this.fileSize;
     }
 
-    public void setVersionNumber(Float versionNumber) {
+    public String getContents() {
+        return this.contents;
+    }
+
+    public void setVersionNumber(Double versionNumber) {
         this.versionNumber = versionNumber;
     }
 
@@ -42,7 +48,11 @@ public class CoreSoftware {
         this.stable = stable;
     }
     
-    public void setFileSize(Float fileSize) {
+    public void setFileSize(Double fileSize) {
         this.fileSize = fileSize;
+    }
+
+    public void setContents(String contents) {
+        this.contents = contents;
     }
 }

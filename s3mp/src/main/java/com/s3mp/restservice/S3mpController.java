@@ -1,5 +1,6 @@
 package com.s3mp.restservice;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -10,6 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.hash.Hashing;
 import com.s3mp.config.OAuthUserService;
 import com.s3mp.sqlite.CoreSoftware;
 import com.s3mp.sqlite.User;
@@ -57,9 +59,6 @@ public class S3mpController {
 			.collect(Collectors.toList());
 		}
 	}
-	// public ArrayList<CoreSoftware> getCoreSoftwareVersions() {
-	// 	return (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
-	// }
 
 	// @CrossOrigin(origins = "http://localhost:8089")    
     @GetMapping(value = "/{id}")
@@ -80,7 +79,7 @@ public class S3mpController {
 		CoreSoftware latestCoreSoftware = currentSoftwareVersionsOnServer.stream().max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
 
 		try {
-			if ( Float.valueOf(version).floatValue() == latestCoreSoftware.getVersionNumber()) {
+			if ( Double.valueOf(version).doubleValue() == latestCoreSoftware.getVersionNumber()) {
 				isUpToDate = true;
 			}
 		} catch (TypeMismatchException typeMismatchException) {
@@ -129,11 +128,7 @@ public class S3mpController {
 	// 	}
     // }
 
-	// @GetMapping("/users")
-	// public List<User> getUsers() {
-	// 	return (List<User>) userService.findAll();
-	// }
-
+	// TODO: This path will need to be secured
 	@GetMapping("/roles/{username}")
 	public String getRole(@PathVariable String username) {
 
@@ -156,5 +151,30 @@ public class S3mpController {
 		}
 
 		return role;
+	}
+
+	@GetMapping("/download/validate/{version}")
+	public Map<String, Object> validateDownload(@PathVariable String version) {
+
+		HashMap<String, Object> map = new HashMap<>();
+
+		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
+
+		CoreSoftware relevantCoreSoftware = currentSoftwareVersionsOnServer.stream()
+			.filter(coreSoftware -> version.equals(coreSoftware.getVersionNumber().toString()))
+			.findAny()
+			.orElse(null);
+
+		String sha256hex = Hashing.sha256().hashString(relevantCoreSoftware.getContents(), StandardCharsets.UTF_8).toString();
+
+		System.out.println(sha256hex);
+		System.out.println(relevantCoreSoftware.getFileSize());
+		System.out.println(version);
+
+		map.put("Hash:", sha256hex);
+		map.put("Size:", relevantCoreSoftware.getFileSize());
+		map.put("URL:", "/download/validate/" + version);
+
+		return map;
 	}
 }

@@ -2,6 +2,9 @@ package com.s3mp.client;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -18,22 +21,37 @@ import java.net.URLEncoder;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Scanner;
+
+import com.google.common.hash.Hashing;
+
+// import com.google.common.hash.Hashing;
+
+// import com.s3mp.utility.TextFileReader;
+
 import java.nio.charset.StandardCharsets;
 
 public class Client {
 
     private Scanner scanner;
     private String serverAddress;
-    // TODO: Add in Versioning
+    // TODO: Add in Versioning Negotiations
     private String s3mpVersion;
     private String accessToken;
     private String refreshToken;
     private String userRole;
+    private String currentCoreSoftware = "kk3wtkNTct";
+    private String currentCoreSoftwareVersion = "1.0";
+    private String coreSoftwareUrl;
+    private Double coreSoftwareSize;
+
+    // private TextFileReader textFileReader;
 
     public Client(String serverAddress, String s3mpVersion) {
 
         scanner = new Scanner(System.in);
         this.serverAddress = serverAddress + "/" + s3mpVersion;
+        this.coreSoftwareUrl = this.serverAddress + "/download/" + currentCoreSoftwareVersion;
+        this.coreSoftwareSize = 325.22;
 
         System.out.println("\n");
         System.out.println("S3MP " + s3mpVersion + " Client Session Initialized...");
@@ -71,9 +89,11 @@ public class Client {
                     }
 
                 } 
-                // else if ("users".equals(userInput)) {
-                //     getUsers();
-                // }
+                 else if("validate".equalsIgnoreCase(userInput)) {
+                    //  System.out.println(new File(".").getAbsolutePath());
+                    // readTextFile("src\\main\\resources\\mocks\\software1.txt");
+                    validateDownload();
+                 }
                 // else {
                 //     System.out.println("Command Not Recognized. Please check spelling and syntax.");
                 // }
@@ -85,10 +105,6 @@ public class Client {
         }
 
         System.out.println("S3MP Client Session Terminated.");
-
-    }
-
-    public void initiateDownload(String version) {
 
     }
 
@@ -124,27 +140,13 @@ public class Client {
         // System.out.println(versionMap);
             
         bufferedReader.close();
+
+        // System.out.println(textFileReader.readInTextFile("location"));
     }
-
-    // public void getUsers() throws IOException {
-
-    //     URL url = new URL(this.serverAddress + "/users");
-
-    //     URLConnection urlConnection = url.openConnection();
-
-    //     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
-
-    //     String inputLine;
-
-    //     while ((inputLine = bufferedReader.readLine()) != null) 
-    //         System.out.println(inputLine);
-
-    //     bufferedReader.close();
-    // }
 
     public void checkIfUpToDate() throws IOException {
 
-        URL url = new URL(this.serverAddress + "/latest/1.0");
+        URL url = new URL(this.serverAddress + "/latest/" + this.currentCoreSoftwareVersion);
 
         URLConnection urlConnection = url.openConnection();
 
@@ -170,7 +172,7 @@ public class Client {
 
     // To get token, add "Grant_type: password" to user and pass. point at oauth/token
     // Save both Auth and Refresh token locally. Send Auth in all requests and Refresh only in Refresh flow
-    // When using refresh to get new auth token, you'll get a new refresh token as well, save both locally
+    // When using refresh to get new auth token, will need to get a new refresh token as well, save both locally
     public void login() throws IOException, InterruptedException {
         try {
             String username = " ";
@@ -250,12 +252,46 @@ public class Client {
             strBuilder.append(line);
         }
 
+        bufferedReader.close();
+
         return strBuilder.toString();
     }
 
+    
+    public void initiateDownload(String version) {
+        // TODO: mock download process from server
+    }
+
     public void validateDownload() throws IOException {
-        // TODO: Use Guava to produce SHA256 Hash
-        //    Example: String sha256hex = Hashing.sha256().hashString(originalString, StandardCharsets.UTF_8).toString();
+        
+        URL url = new URL(this.serverAddress + "/download/validate/" + this.currentCoreSoftwareVersion);
+
+        URLConnection urlConnection = url.openConnection();
+
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+        StringBuilder strBuilder = new StringBuilder();
+
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            strBuilder.append(line);
+        }
+
+        HashMap<String, String> validationMap = new HashMap<>();
+        String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
+
+        for (String str : stringArr) {
+            validationMap.put(str.substring(0, str.indexOf(":")), str.substring(str.indexOf(":") + 1));
+        }
+
+        bufferedReader.close();
+
+        String hash = Hashing.sha256().hashString(this.currentCoreSoftware, StandardCharsets.UTF_8).toString();
+
+
+        // if (this.coreSoftwareUrl.equals(validationMap.get("URL")) && hash.equals(validationMap.get("Hash")) && this.coreSoftwareSize.equals(validationMap.get(validationMap.keySet().toArray()[1]))) {
+
+        // // }
+
     }
 
     public HashMap<String, String> convertTokenResponseToHashMap(String response) {
@@ -273,6 +309,28 @@ public class Client {
 
         return tokenMap;
     }
+
+    public String readTextFile(String location) throws FileNotFoundException, IOException {
+
+        File file = new File(location);
+    
+        BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
+
+        StringBuilder stringBuilder = new StringBuilder();
+    
+        String line;
+
+        while ((line = bufferedReader.readLine()) != null) {
+            stringBuilder.append(line);
+            // Print the string
+            System.out.println(line);
+        }
+
+        bufferedReader.close();
+
+        return stringBuilder.toString();
+    }
+
     public static void main(String[] args) throws Exception {
         Client client = new Client("http://localhost:8080", "v1");
     }
