@@ -167,13 +167,29 @@ public class S3mpController {
 
 		String sha256hex = Hashing.sha256().hashString(relevantCoreSoftware.getContents(), StandardCharsets.UTF_8).toString();
 
-		System.out.println(sha256hex);
-		System.out.println(relevantCoreSoftware.getFileSize());
-		System.out.println(version);
+		map.put("Hash", sha256hex);
+		map.put("Size", relevantCoreSoftware.getFileSize());
+		map.put("URL", "http://localhost:8080/v1/download/initialize/" + version);
 
-		map.put("Hash:", sha256hex);
-		map.put("Size:", relevantCoreSoftware.getFileSize());
-		map.put("URL:", "/download/validate/" + version);
+		return map;
+	}
+
+	@GetMapping("/download/initialize/{version}")
+	public Map<String, Object> initializeDownload(@PathVariable String version) {
+
+		HashMap<String, Object> map = new HashMap<>();
+
+		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
+
+		CoreSoftware relevantCoreSoftware = currentSoftwareVersionsOnServer.stream()
+			.filter(coreSoftware -> version.equals(coreSoftware.getVersionNumber().toString()))
+			.findAny()
+			.orElse(null);
+		
+		map.put("version", relevantCoreSoftware.getVersionNumber());
+		map.put("software", relevantCoreSoftware.getContents());
+		map.put("URL", "http://localhost:8080/v1/download/initialize/" + version);
+		map.put("size", relevantCoreSoftware.getFileSize());
 
 		return map;
 	}

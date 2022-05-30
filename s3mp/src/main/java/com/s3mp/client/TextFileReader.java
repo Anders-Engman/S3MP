@@ -1,4 +1,4 @@
-package com.s3mp.utility;
+package com.s3mp.client;
 
 public class TextFileReader {
 
