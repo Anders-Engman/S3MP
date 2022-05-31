@@ -69,14 +69,6 @@ public class S3mpController {
 		}
 	}
 
-	// @CrossOrigin(origins = "http://localhost:8089")    
-    @GetMapping(value = "/{id}")
-    public CoreSoftware findOne(@PathVariable Integer id) {
-        CoreSoftware coreSoftware = coreSoftwareService.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return coreSoftware;
-    }
-
 	@GetMapping("/latest/{version}/{role}")
 	public Map<String, Object> upToDate(@PathVariable String version, @PathVariable String role) {
 
@@ -173,8 +165,21 @@ public class S3mpController {
 	}
 
 	@GetMapping("/download/initialize/{version}")
-	public ResponseEntity<InputStreamResource> streamFile() throws IOException {
-		InputStream inputStream = new TextFileReader().readInTextFile("static/mocks/software1.txt");
+	public ResponseEntity<InputStreamResource> streamFile(@PathVariable String version) throws IOException {
+
+		String filename;
+
+		if ("1.0".equals(version)) {
+			filename = "software1.txt";
+		} else if ("1.1".equals(version)) {
+			filename = "software2.txt";
+		} else if ("1.11".equals(version)) {
+			filename = "software3.txt";
+		} else {
+			filename = "software4.txt";
+		}
+
+		InputStream inputStream = new TextFileReader().readInTextFile("static/mocks/" + filename);
 
 		int length = inputStream.available();
 		MediaType mediaType = MediaType.parseMediaType("application/octet-stream");
@@ -184,7 +189,7 @@ public class S3mpController {
 		return ResponseEntity.ok()
 			.contentType(mediaType)
 			.contentLength(length)
-			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + "software1.txt" + "\"")
+			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
 			.body(resource);
 	}
 
