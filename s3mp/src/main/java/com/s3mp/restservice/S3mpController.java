@@ -1,5 +1,7 @@
 package com.s3mp.restservice;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,9 +17,13 @@ import com.google.common.hash.Hashing;
 import com.s3mp.config.OAuthUserService;
 import com.s3mp.sqlite.CoreSoftware;
 import com.s3mp.sqlite.User;
+import com.s3mp.utility.TextFileReader;
 
 import org.hibernate.TypeMismatchException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -34,8 +40,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/v1")
+@RequestMapping("/${s3mp.serverversion}")
 public class S3mpController {
+
+	@Value("${s3mp.serverversion}")
+    private String serverVersion;
 
 	@Autowired
 	CoreSoftwareService coreSoftwareService;
@@ -68,15 +77,21 @@ public class S3mpController {
         return coreSoftware;
     }
 
-	@GetMapping("/latest/{version}")
-	public Map<String, Object> upToDate(@PathVariable String version) {
+	@GetMapping("/latest/{version}/{role}")
+	public Map<String, Object> upToDate(@PathVariable String version, @PathVariable String role) {
 
 		Boolean isUpToDate = false;
 		HashMap<String, Object> map = new HashMap<>();
 
 		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
 
-		CoreSoftware latestCoreSoftware = currentSoftwareVersionsOnServer.stream().max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
+		CoreSoftware latestCoreSoftware;
+		
+		if ("EXPERIMENTAL".equals(role)) {
+			latestCoreSoftware = currentSoftwareVersionsOnServer.stream().max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
+		} else {
+			latestCoreSoftware = currentSoftwareVersionsOnServer.stream().filter(coreSoftware -> coreSoftware.getStability() == true).max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
+		}
 
 		try {
 			if ( Double.valueOf(version).doubleValue() == latestCoreSoftware.getVersionNumber()) {
@@ -86,49 +101,12 @@ public class S3mpController {
 			System.out.println(typeMismatchException);
 		}
 
-		map.put("Is Up to Date:", isUpToDate);
-		map.put("Latest Version:", latestCoreSoftware.getVersionNumber());
+		map.put("IsUpToDate:", isUpToDate);
+		map.put("LatestVersion:", latestCoreSoftware.getVersionNumber());
 
 		return map;
 	}
 
-	// Change this to point at the oauth/token endpoint and accept a grant_type field
-	// may need to also accept refresh_token depending
-	// Spring Security handles this automatically
-	// @PostMapping(path = "/login", 
-    //     consumes = MediaType.APPLICATION_JSON_VALUE, 
-    //     produces = MediaType.APPLICATION_JSON_VALUE)
-	// public ResponseEntity<String> login(@RequestBody Map<String, String> body) {
-
-	// 	Optional<User> targetUser = null;
-
-	// 	ArrayList<User> userList = (ArrayList<User>) userService.findAll();
-
-	// 	try {
-	// 		targetUser = userList.stream()
-	// 				.filter(u -> u.getUsername().equals(body.get("username")))
-	// 				.findAny();
-	// 	} catch (Exception exception) {
-	// 		System.out.println("Error Finding User");
-	// 	}
-
-	// 	if (targetUser.isPresent()) {
-	// 		UserDetails userDetails = oAuthUserService.loadUserByUsername(targetUser.get().getUsername());
-
-	// 		System.out.println("HelLoooo");
-	// 		System.out.println(userDetails);
-	// 	}
-
-	// 	if (targetUser.isPresent() && body.get("password").equals(targetUser.get().getPassword())) {
-	// 		// return new ResponseEntity<>("Login Successful. Welcome " + body.get("username"), HttpStatus.ACCEPTED);
-	// 		return new ResponseEntity<>(HttpStatus.ACCEPTED);
-	// 	} else {
-	// 		// return new ResponseEntity<>("Login Unsuccessful. Please Contact your Administrator", HttpStatus.UNAUTHORIZED);
-	// 		return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
-	// 	}
-    // }
-
-	// TODO: This path will need to be secured
 	@GetMapping("/roles/{username}")
 	public String getRole(@PathVariable String username) {
 
@@ -174,7 +152,7 @@ public class S3mpController {
 		return map;
 	}
 
-	@GetMapping("/download/initialize/{version}")
+	@GetMapping("/download/info/{version}")
 	public Map<String, Object> initializeDownload(@PathVariable String version) {
 
 		HashMap<String, Object> map = new HashMap<>();
@@ -192,5 +170,28 @@ public class S3mpController {
 		map.put("size", relevantCoreSoftware.getFileSize());
 
 		return map;
+	}
+
+	@GetMapping("/download/initialize/{version}")
+	public ResponseEntity<InputStreamResource> streamFile() throws IOException {
+		InputStream inputStream = new TextFileReader().readInTextFile("static/mocks/software1.txt");
+
+		int length = inputStream.available();
+		MediaType mediaType = MediaType.parseMediaType("application/octet-stream");
+
+		InputStreamResource resource = new InputStreamResource(inputStream);
+
+		return ResponseEntity.ok()
+			.contentType(mediaType)
+			.contentLength(length)
+			.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + "software1.txt" + "\"")
+			.body(resource);
+	}
+
+	@GetMapping("/check")
+	public String checkS3MPVersion() {
+
+		return serverVersion;
+
 	}
 }

@@ -29,8 +29,6 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
             .antMatchers("/versions**").authenticated()
             .antMatchers("/api/**").authenticated()
             .antMatchers("/latest/**").authenticated()
-            // TODO: anyRequest.authenticated() makes it so nothing works. Having difficulty properly attaching
-            // the access token
             // .anyRequest().permitAll();
             .anyRequest().authenticated();
     }

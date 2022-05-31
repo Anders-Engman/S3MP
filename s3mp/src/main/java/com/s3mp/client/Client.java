@@ -14,13 +14,16 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Socket;
+import java.net.URISyntaxException;
 // import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -33,22 +36,20 @@ public class Client {
     private String s3mpVersion;
     private String accessToken = "No Token";
     private String refreshToken = "No Token";
-    private String userRole;
+    private String userRole = null;
     private String currentCoreSoftware = "kk3wtkNTct";
     private String currentCoreSoftwareVersion = "1.0";
     private String coreSoftwareUrl;
     private Double coreSoftwareSize;
     private String username;
 
-    private TextFileReader textFileReader;
-
-    public Client(String serverAddress, String s3mpVersion) throws NoSuchAlgorithmException {
+    public Client(String serverAddress, String s3mpVersion) throws NoSuchAlgorithmException, URISyntaxException {
 
         scanner = new Scanner(System.in);
         this.serverAddress = serverAddress + "/" + s3mpVersion;
         this.coreSoftwareUrl = this.serverAddress + "/download/initialize/" + currentCoreSoftwareVersion;
         this.coreSoftwareSize = 325.22;
-        textFileReader = new TextFileReader();
+
         System.out.println("\n");
         System.out.println("S3MP " + s3mpVersion + " Client Session Initialized...");
 
@@ -61,7 +62,7 @@ public class Client {
 
             try {
                 if ("versions".equalsIgnoreCase(userInput)) {
-                    getVersions(this.userRole);
+                    getVersions();
                 } else if ("uptodate".equalsIgnoreCase(userInput)) {
                     checkIfUpToDate();
                 } else if ("login".equalsIgnoreCase(userInput)) {
@@ -86,17 +87,17 @@ public class Client {
 
                 } else if("validate".equalsIgnoreCase(userInput)) {
                     //  System.out.println(new File(".").getAbsolutePath());
-                    this.textFileReader.readInTextFile("src\\main\\resources\\mocks\\software1.txt");
                     validateDownload();
-                } else if ("download".equalsIgnoreCase(userInput)) {
-                    initiateDownload("1.1");
+                } else if ("info".equalsIgnoreCase(userInput)) {
+                    getDownloadInfo();
                 } else if ("check".equalsIgnoreCase(userInput)) {
                     checkInstalledVersion();
+                } else if ("download".equalsIgnoreCase(userInput)) {
+                    // initiateDownload();
+                } else if ("refresh".equalsIgnoreCase(userInput)) {
+                    refreshToken();
                 }
 
-                // else {
-                //     System.out.println("Command Not Recognized. Please check spelling and syntax.");
-                // }
             } catch (IOException ioException) {
                 System.out.println(ioException);
             }
@@ -108,21 +109,21 @@ public class Client {
 
     }
 
-    public void getVersions(String role) throws IOException {
+    public void getVersions() throws IOException {
 
         if (checkToken()) {
-            URL url = new URL(this.serverAddress + "/versions/" + role);
+            
+            if (this.userRole == null) {
+                this.userRole = getRole();
+            }
+
+            URL url = new URL(this.serverAddress + "/versions/" + this.userRole);
 
             HttpURLConnection http = (HttpURLConnection) url.openConnection();
-            // URLConnection urlConnection = url.openConnection();
             http.setRequestMethod("GET");
             http.setRequestProperty("Accept", "application/json");
             http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
             
-            // System.out.println(http.getResponseCode() + " " + http.getResponseMessage());
-            // http.disconnect();
-
-            // BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
 
             StringBuilder strBuilder = new StringBuilder();
@@ -130,17 +131,23 @@ public class Client {
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 strBuilder.append(line);
-                System.out.println(line);
             }
 
-            // TODO: Clean up printing of versions
-            HashMap<String, String> versionMap = convertTokenResponseToHashMap(strBuilder.toString());
-
-            // System.out.println(versionMap);
-                
             bufferedReader.close();
 
-            // System.out.println(textFileReader.readInTextFile("location"));
+            String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s\\[|\\]]", "").split(",");
+
+            System.out.println(" ");
+            System.out.println("Versions currently live on the server: ");
+
+            for (String str : stringArr) {
+                if (str.contains("id")) {
+                    System.out.print(str.substring(str.indexOf(":") + 1) + ". ");
+                } else if (str.contains("versionNumber")) {
+                    System.out.println("Version " + str.substring(str.indexOf(":") + 1));
+                }
+            }
+
         } else {
             return;
         }
@@ -148,21 +155,45 @@ public class Client {
 
     public void checkIfUpToDate() throws IOException {
 
-        URL url = new URL(this.serverAddress + "/latest/" + this.currentCoreSoftwareVersion);
+        if (checkToken()) {
+            if (this.userRole == null) {
+                this.userRole = getRole();
+            }
 
-        HttpURLConnection http = (HttpURLConnection) url.openConnection();
-        http.setRequestMethod("GET");
-        http.setRequestProperty("Accept", "application/json");
-        http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+            URL url = new URL(this.serverAddress + "/latest/" + this.currentCoreSoftwareVersion + "/" + this.userRole);
 
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+            HttpURLConnection http = (HttpURLConnection) url.openConnection();
+            http.setRequestMethod("GET");
+            http.setRequestProperty("Accept", "application/json");
+            http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
 
-        String inputLine;
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
 
-        while ((inputLine = bufferedReader.readLine()) != null) 
-            System.out.println(inputLine);
+            StringBuilder strBuilder = new StringBuilder();
+            String inputLine;
 
-        bufferedReader.close();
+            while ((inputLine = bufferedReader.readLine()) != null) {
+                strBuilder.append(inputLine);
+            }
+
+            HashMap<String, String> updateMap = new HashMap<>();
+            String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
+
+            for (String str : stringArr) {
+                updateMap.put(str.substring(0, str.indexOf(":")).replaceAll("\"", ""), (str.substring(str.indexOf(":") + 3)).replaceAll("\"", ""));
+            }
+
+            bufferedReader.close();
+
+            if (updateMap.get("IsUpToDate").equals("true")) {
+                System.out.println("You're all set! Version " + this.currentCoreSoftwareVersion + " is installed locally and is the latest version.");
+            } else {
+                System.out.println("Your current installation is Version " + this.currentCoreSoftwareVersion + " and is not the latest version available.");
+                System.out.println("Version " + updateMap.get("LatestVersion") + " is live on the server.");
+            }
+        } else {
+            return;
+        }
     }
 
     public static boolean pingServer(String host, int port, int timeout) throws IOException {
@@ -175,9 +206,6 @@ public class Client {
         }
     }
 
-    // To get token, add "Grant_type: password" to user and pass. point at oauth/token
-    // Save both Auth and Refresh token locally. Send Auth in all requests and Refresh only in Refresh flow
-    // When using refresh to get new auth token, will need to get a new refresh token as well, save both locally
     public void login() throws IOException, InterruptedException {
         try {
             String username = " ";
@@ -212,7 +240,6 @@ public class Client {
             OutputStream stream = http.getOutputStream();
             stream.write(out);
 
-            //Read response
             StringBuilder strBuilder = new StringBuilder();
             BufferedReader br = new BufferedReader(new InputStreamReader(http.getInputStream()));
 
@@ -223,16 +250,10 @@ public class Client {
 
             HashMap<String, String> tokenMap = convertTokenResponseToHashMap(strBuilder.toString());
 
-            // System.out.println(tokenMap.get(tokenMap.keySet().toArray()[0]));
-            // System.out.println(tokenMap.get(tokenMap.keySet().toArray()[5]));
-
             this.refreshToken = tokenMap.get("refresh_token");
             this.accessToken = tokenMap.get("access_token");
             this.username = username;
 
-            // System.out.println(this.accessToken);
-
-            // System.out.println(http.getResponseCode() + " " + http.getResponseMessage());
             if (http.getResponseCode() == 200) {
                 System.out.println("User Authenticated. Welcome " + this.username);
             } else {
@@ -248,7 +269,43 @@ public class Client {
         }
     }
 
-    public String getRole() throws MalformedURLException, IOException {
+    public void refreshToken() throws IOException {
+        URL url = new URL("http://localhost:8080/oauth/token");
+        HttpURLConnection http = (HttpURLConnection) url.openConnection();
+        http.setRequestMethod("POST");
+        http.setDoOutput(true);
+        http.setRequestProperty("Accept", "application/json");
+        http.setRequestProperty("Authorization", "refresh_token " + this.refreshToken);
+        String grant_type = URLEncoder.encode("refresh_token", "UTF-8");
+        String client_id = URLEncoder.encode("s3mp", "UTF-8");
+        String client_secret = URLEncoder.encode("secret", "UTF-8");
+        String refresh_token = URLEncoder.encode(this.refreshToken, "UTF-8");
+
+        String postDataParams = "grant_type=" + grant_type + 
+                                "&client_id=" + client_id + 
+                                "&client_secret=" + client_secret +
+                                "&refresh_token=" + refresh_token;
+
+        byte[] out = postDataParams.getBytes(StandardCharsets.UTF_8);
+
+        OutputStream stream = http.getOutputStream();
+        stream.write(out);
+
+        StringBuilder strBuilder = new StringBuilder();
+        BufferedReader br = new BufferedReader(new InputStreamReader(http.getInputStream()));
+
+        String line;
+        while ((line = br.readLine()) != null) {
+            strBuilder.append(line);
+        }
+
+        HashMap<String, String> tokenMap = convertTokenResponseToHashMap(strBuilder.toString());
+
+        System.out.println(tokenMap);
+
+    }
+
+    private String getRole() throws MalformedURLException, IOException {
 
         URL url = new URL(this.serverAddress + "/roles/" + this.username);
 
@@ -271,81 +328,115 @@ public class Client {
     }
 
     
-    public void initiateDownload(String version) throws MalformedURLException, IOException {
-        // TODO: mock download process from server
-        URL url = new URL(this.serverAddress + "/download/initialize/" + version);
+    public void getDownloadInfo() throws MalformedURLException, IOException {
 
-        HttpURLConnection http = (HttpURLConnection) url.openConnection();
-        http.setRequestMethod("GET");
-        http.setRequestProperty("Accept", "application/json");
-        http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+        if (checkToken()) {
+            String lookupVersion = " ";
 
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
-        StringBuilder strBuilder = new StringBuilder();
+            System.out.println("");
+            System.out.println("Please input the number of the version for which you would like information (ex. 1.0): ");
+            lookupVersion = scanner.nextLine();
 
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            strBuilder.append(line);
+            URL url = new URL(this.serverAddress + "/download/info/" + lookupVersion);
+
+            HttpURLConnection http = (HttpURLConnection) url.openConnection();
+            http.setRequestMethod("GET");
+            http.setRequestProperty("Accept", "application/json");
+            http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+            StringBuilder strBuilder = new StringBuilder();
+
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                strBuilder.append(line);
+            }
+
+            HashMap<String, String> downloadMap = new HashMap<>();
+            String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
+
+            for (String str : stringArr) {
+                downloadMap.put(str.substring(0, str.indexOf(":")).replaceAll("\"", ""), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
+            }
+
+            bufferedReader.close();
+
+            System.out.println(downloadMap);
+
+            // this.coreSoftwareSize = Double.valueOf(downloadMap.get("size")).doubleValue();
+            // this.coreSoftwareUrl = downloadMap.get("URL");
+            // this.currentCoreSoftware = downloadMap.get("software");
+            // this.currentCoreSoftwareVersion = downloadMap.get("version");
+        } else {
+            return;
         }
-
-        HashMap<String, String> downloadMap = new HashMap<>();
-        String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
-
-        for (String str : stringArr) {
-            downloadMap.put(str.substring(0, str.indexOf(":")).replaceAll("\"", ""), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
-        }
-
-        bufferedReader.close();
-
-        System.out.println(downloadMap);
-
-        this.coreSoftwareSize = Double.valueOf(downloadMap.get("size")).doubleValue();
-        this.coreSoftwareUrl = downloadMap.get("URL");
-        this.currentCoreSoftware = downloadMap.get("software");
-        this.currentCoreSoftwareVersion = downloadMap.get("version");
     }
 
     public void validateDownload() throws IOException, NoSuchAlgorithmException {
         
-        URL url = new URL(this.serverAddress + "/download/validate/" + this.currentCoreSoftwareVersion);
+        if (checkToken()) {
+            URL url = new URL(this.serverAddress + "/download/validate/" + this.currentCoreSoftwareVersion);
 
-        HttpURLConnection http = (HttpURLConnection) url.openConnection();
-        http.setRequestMethod("GET");
-        http.setRequestProperty("Accept", "application/json");
-        http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+            HttpURLConnection http = (HttpURLConnection) url.openConnection();
+            http.setRequestMethod("GET");
+            http.setRequestProperty("Accept", "application/json");
+            http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
 
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
-        StringBuilder strBuilder = new StringBuilder();
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+            StringBuilder strBuilder = new StringBuilder();
 
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            strBuilder.append(line);
-        }
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                strBuilder.append(line);
+            }
 
-        HashMap<String, String> validationMap = new HashMap<>();
-        String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
+            HashMap<String, String> validationMap = new HashMap<>();
+            String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
 
-        for (String str : stringArr) {
-            validationMap.put(str.substring(0, str.indexOf(":")), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
-        }
+            for (String str : stringArr) {
+                validationMap.put(str.substring(0, str.indexOf(":")), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
+            }
 
-        bufferedReader.close();
+            bufferedReader.close();
 
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] encodedhash = digest.digest(this.currentCoreSoftware.getBytes(StandardCharsets.UTF_8));
-        String hash = bytesToHex(encodedhash);
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encodedhash = digest.digest(this.currentCoreSoftware.getBytes(StandardCharsets.UTF_8));
+            String hash = bytesToHex(encodedhash);
 
-        if (this.coreSoftwareUrl.equals(validationMap.get(validationMap.keySet().toArray()[0])) && hash.equals(validationMap.get(validationMap.keySet().toArray()[2])) && this.coreSoftwareSize.equals(Double.valueOf(validationMap.get(validationMap.keySet().toArray()[1])).doubleValue())) {
-            System.out.println("Current Installation is Valid. No Action is Required.");
+            if (this.coreSoftwareUrl.equals(validationMap.get(validationMap.keySet().toArray()[0])) && hash.equals(validationMap.get(validationMap.keySet().toArray()[2])) && this.coreSoftwareSize.equals(Double.valueOf(validationMap.get(validationMap.keySet().toArray()[1])).doubleValue())) {
+                System.out.println("Current Installation is Valid. No Action is Required.");
+            } else {
+                System.out.println("Current Installation may be Invalid. Recommended Action: Check with Administrator");
+            }
         } else {
-            // TODO: Customize response for ADMIN role
-            System.out.println("Current Installation may be Invalid. Recommended Action: Check with Administrator");
+            return;
         }
     }
 
-    public void checkInstalledVersion() {
-        System.out.println("The current installed core software version is " + this.currentCoreSoftwareVersion);
-        System.out.println("   File Size: " + this.coreSoftwareSize + "Mb || Origin URL: " + this.coreSoftwareUrl);
+    public void checkInstalledVersion() throws MalformedURLException, IOException {
+
+        if (checkToken()) {
+            URL url = new URL(this.serverAddress + "/check");
+
+            HttpURLConnection http = (HttpURLConnection) url.openConnection();
+            http.setRequestMethod("GET");
+            http.setRequestProperty("Accept", "application/json");
+            http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+
+            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+            StringBuilder strBuilder = new StringBuilder();
+
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                strBuilder.append(line);
+            }
+
+            System.out.println("The current installed core software version is " + this.currentCoreSoftwareVersion);
+            System.out.println("   File Size: " + this.coreSoftwareSize + "Mb || Origin URL: " + this.coreSoftwareUrl);
+            System.out.println("The current version of S3MP Installed on the Server is " + strBuilder.toString());
+        } else {
+            return;
+        }
     }
 
     public HashMap<String, String> convertTokenResponseToHashMap(String response) {
@@ -362,27 +453,6 @@ public class Client {
         }
 
         return tokenMap;
-    }
-
-    public String readTextFile(String location) throws FileNotFoundException, IOException {
-
-        File file = new File(location);
-    
-        BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
-
-        StringBuilder stringBuilder = new StringBuilder();
-    
-        String line;
-
-        while ((line = bufferedReader.readLine()) != null) {
-            stringBuilder.append(line);
-            // Print the string
-            System.out.println(line);
-        }
-
-        bufferedReader.close();
-
-        return stringBuilder.toString();
     }
 
     private static String bytesToHex(byte[] hash) {
