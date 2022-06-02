@@ -1,5 +1,10 @@
 package com.s3mp.restservice;
 
+// S3MPController.java
+// Author: Anders Engman
+// Description: This controller handles the RESTful functionality which powers S3MP on the server side. While some
+//				permissions and data processing work is done here, the server implementation is fairly lightweight.
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -39,13 +44,16 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+// Required Spring Annotations to power API
 @RestController
+// Drawn from application.properties file
 @RequestMapping("/${s3mp.serverversion}")
 public class S3mpController {
-
+	// Drawn from application.properties file
 	@Value("${s3mp.serverversion}")
     private String serverVersion;
 
+	// The following services are necessary for different security and db data retrieval functions
 	@Autowired
 	CoreSoftwareService coreSoftwareService;
 
@@ -55,13 +63,18 @@ public class S3mpController {
 	@Autowired
 	OAuthUserService oAuthUserService;
 
+	// This routing handles the 'versions' function, returning all relevant versions to the requester
+	// Note: this function discriminates on the basis of role so that Generic users will only see stable versions
+	// where Experimental users will also see unstable versions.
 	@GetMapping("/versions/{role}")
 	public List<CoreSoftware> getCoreSoftwareVersions(@PathVariable String role) {
-		
+		// pull all core software versions on server
 		List<CoreSoftware> coreSoftwareOnServer = (List<CoreSoftware>) coreSoftwareService.findAll();
 
+		// If experimental, show all versions
 		if ("EXPERIMENTAL".equals(role)) {
-			return (List<CoreSoftware>) coreSoftwareService.findAll();
+			return coreSoftwareOnServer;
+		// Using Java Streams, only show stable versions to Generic users
 		} else {
 			return (List<CoreSoftware>) coreSoftwareOnServer.stream()
 			.filter(cs -> cs.getStability().equals(true))
@@ -69,22 +82,29 @@ public class S3mpController {
 		}
 	}
 
+	// This routing handles the 'uptodate' function, returning two fields:
+	//		"IsUpToDate:" a boolean which describes if the users' local installation is up to date
+	//		"LatestVersion:" the version number of the most up to date core software version on the server
 	@GetMapping("/latest/{version}/{role}")
 	public Map<String, Object> upToDate(@PathVariable String version, @PathVariable String role) {
 
 		Boolean isUpToDate = false;
 		HashMap<String, Object> map = new HashMap<>();
 
+		// Pull all versions of core software on the server
 		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
 
 		CoreSoftware latestCoreSoftware;
 		
+		// This conditional block features Java streams responsible for returning the appropriate results depending on the users role
+		// Again, experimental users will often see a higher version number than generic users
 		if ("EXPERIMENTAL".equals(role)) {
 			latestCoreSoftware = currentSoftwareVersionsOnServer.stream().max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
 		} else {
 			latestCoreSoftware = currentSoftwareVersionsOnServer.stream().filter(coreSoftware -> coreSoftware.getStability() == true).max(Comparator.comparing(CoreSoftware::getVersionNumber)).get();
 		}
 
+		// Determine if the users' version is equal to the servers highest version
 		try {
 			if ( Double.valueOf(version).doubleValue() == latestCoreSoftware.getVersionNumber()) {
 				isUpToDate = true;
@@ -93,6 +113,7 @@ public class S3mpController {
 			System.out.println(typeMismatchException);
 		}
 
+		// add the two fields to the map
 		map.put("IsUpToDate:", isUpToDate);
 		map.put("LatestVersion:", latestCoreSoftware.getVersionNumber());
 
@@ -139,7 +160,7 @@ public class S3mpController {
 
 		map.put("Hash", sha256hex);
 		map.put("Size", relevantCoreSoftware.getFileSize());
-		map.put("URL", "http://localhost:8080/v1/download/initialize/" + version);
+		map.put("URL", "http://localhost:9100/v1/download/initialize/" + version);
 
 		return map;
 	}
@@ -158,7 +179,7 @@ public class S3mpController {
 		
 		map.put("version", relevantCoreSoftware.getVersionNumber());
 		map.put("software", relevantCoreSoftware.getContents());
-		map.put("URL", "http://localhost:8080/v1/download/initialize/" + version);
+		map.put("URL", "http://localhost:9100/v1/download/initialize/" + version);
 		map.put("size", relevantCoreSoftware.getFileSize());
 
 		return map;

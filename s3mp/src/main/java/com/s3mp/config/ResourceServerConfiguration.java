@@ -25,11 +25,10 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
             .and()
             .antMatcher("/**")
             .authorizeRequests()
-            // .antMatchers("/versions**").permitAll()
             .antMatchers("/versions**").authenticated()
             .antMatchers("/api/**").authenticated()
             .antMatchers("/latest/**").authenticated()
-            // .anyRequest().permitAll();
+            .antMatchers("/v1/check**").permitAll()
             .anyRequest().authenticated();
     }
 
