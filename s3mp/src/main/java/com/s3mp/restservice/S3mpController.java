@@ -160,7 +160,7 @@ public class S3mpController {
 
 		map.put("Hash", sha256hex);
 		map.put("Size", relevantCoreSoftware.getFileSize());
-		map.put("URL", "http://localhost:9100/v1/download/initialize/" + version);
+		map.put("URL", "https://localhost:9100/v1/download/initialize/" + version);
 
 		return map;
 	}
@@ -179,7 +179,7 @@ public class S3mpController {
 		
 		map.put("version", relevantCoreSoftware.getVersionNumber());
 		map.put("software", relevantCoreSoftware.getContents());
-		map.put("URL", "http://localhost:9100/v1/download/initialize/" + version);
+		map.put("URL", "https://localhost:9100/v1/download/initialize/" + version);
 		map.put("size", relevantCoreSoftware.getFileSize());
 
 		return map;

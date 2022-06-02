@@ -5,6 +5,10 @@ package com.s3mp.client;
 // Description: this file independently covers all the functional requirements of a functioning S3MP client CLI application.
 //              It contains a variety of core functions such as download, validateDownload, and versions as well as
 //              some Quality of Life functions such as "commands", "ping", and "check" amongst others.
+// REQUIREMENTS FULFILLED:
+//      STATEFUL: 
+//      UI:
+//      CLIENT: 
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -48,14 +52,50 @@ public class Client {
     private String coreSoftwareUrl;
     private Double coreSoftwareSize;
     private String username;
+    private Integer portNumber;
+    private String ipAddress;
 
     public Client(String serverAddress, String s3mpVersion) throws NoSuchAlgorithmException, URISyntaxException {
 
-        // Setting basic class variables which hold information about the theoretical locally installed core software
         scanner = new Scanner(System.in);
-        this.serverAddress = serverAddress + "/" + s3mpVersion;
-        this.coreSoftwareUrl = this.serverAddress + "/download/initialize/" + currentCoreSoftwareVersion;
-        this.coreSoftwareSize = 325.22;
+
+        String userInput = " ";
+        System.out.println("\n");
+        System.out.println("Please provide an IP address or Hostname with which to connect to the S3MP server:");
+        boolean validConnectionCriteria = false;
+
+        // CLIENT:
+        // This while loop provides users the option to specify port numbers on which to connect.
+        while (!validConnectionCriteria) {
+            userInput = scanner.nextLine();
+
+            if ("Quit".equalsIgnoreCase(userInput)) {
+                return;
+            }
+
+            if ("127.0.0.1".equals(userInput) || "https://localhost:9100".equals(userInput)) {
+                    validConnectionCriteria = true;
+                    // Setting basic class variables which hold information about the theoretical locally installed core software
+                    if ("127.0.0.1".equals(userInput)) {
+                        this.ipAddress = userInput;
+                        this.serverAddress = "https://localhost:9100/" + s3mpVersion;
+                    } else {
+                        this.ipAddress = "127.0.0.1";
+                        this.serverAddress = userInput + "/" + s3mpVersion;
+                    }
+                    this.portNumber = 9100;
+                    this.coreSoftwareUrl = this.serverAddress + "/download/initialize/" + currentCoreSoftwareVersion;
+                    this.coreSoftwareSize = 325.22;
+                    System.out.println("Connection Configuration Successful. Welcome to S3MP!");
+                    // System.out.println("\n");
+            } else {
+                System.out.println("\n");
+                System.out.println("Please provide a valid IP Address or Hostname.");
+                System.out.println("Reminder: S3MP is configured to run on 'https://localhost:9100' or '127.0.0.1' port 9100, unless otherwise configured by your administrator.");
+                System.out.println("Alternately, you may enter 'quit' to exit this client.");
+            }
+
+        }
 
         // Print the welcome prompt
         System.out.println("\n");
@@ -64,8 +104,6 @@ public class Client {
         System.out.println("Please type 'login' and enter valid credentials to begin.");
         System.out.println("For a list of commands, type 'commands' to view all S3MP v1 commands and their descriptions.");
         System.out.println("---------------------------------------------------------");
-
-        String userInput = " ";
 
         // This while loop handles the different command routing
         // Each command is fairly well described by its "command".equalsIgnoreCase declaration.
@@ -91,7 +129,7 @@ public class Client {
                 } else if ("quit".equalsIgnoreCase(userInput)) {
                     break;
                 } else if ("ping".equalsIgnoreCase(userInput)) {
-                    Boolean serverAvailable = pingServer("127.0.0.1", 9100, 2000);
+                    Boolean serverAvailable = pingServer(this.ipAddress, 9100, 2000);
 
                     if (serverAvailable) {
                         System.out.println("S3MP Server Available.");
@@ -893,6 +931,6 @@ public class Client {
     }
 
     public static void main(String[] args) throws Exception {
-        Client client = new Client("https://localhost:9100", "v1");
+        Client client = new Client("https://localhost:", "v1");
     }
 }
