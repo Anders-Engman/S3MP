@@ -126,9 +126,10 @@ public class Client {
     // This command is responsible for displaying available core software versions present on the server.
     public void getVersions() throws IOException {
 
-        // Checking if the user has a valid token
+        // Wrapper which handles token presence detection
         if (checkToken()) {
             try {
+                // If the user role is not already established locally, get it from the server
                 if (this.userRole == null) {
                     this.userRole = getRole();
                 }
@@ -160,13 +161,15 @@ public class Client {
                     System.out.println(" ");
                     System.out.println("Versions currently live on the server: ");
         
-                    // Print the version info.
+                    // Print the version info including number and stability
                     // The differentiation between lines enables a concise numbered list of versions
                     for (String str : stringArr) {
                         if (str.contains("id")) {
                             System.out.print(str.substring(str.indexOf(":") + 1) + ". ");
                         } else if (str.contains("versionNumber")) {
-                            System.out.println("Version " + str.substring(str.indexOf(":") + 1));
+                            System.out.print("Version " + str.substring(str.indexOf(":") + 1));
+                        } else if (str.contains("stability")) {
+                            System.out.println(" - Stable Build: " + str.substring(str.indexOf(":") + 1));
                         }
                     }
                 } else {
@@ -176,6 +179,7 @@ public class Client {
                 System.out.println("Request Unsuccessful. Please utilize the 'ping' command to determine if S3MP server is available.");
             }
         } else {
+            System.out.println("Invalid Token. Please use 'refresh' or 'login' to get new valid tokens.");
             return;
         }
     }
@@ -184,9 +188,10 @@ public class Client {
     // core software version on the server
     public void checkIfUpToDate() throws IOException {
 
-        // Checking if the user has a valid token
+        // Wrapper which handles token presence detection
         if (checkToken()) {
             try {
+                // If the user role is not already established locally, get it from the server
                 if (this.userRole == null) {
                     this.userRole = getRole();
                 }
@@ -235,6 +240,7 @@ public class Client {
                 System.out.println("Request Unsuccessful. Please utilize the 'ping' command to determine if S3MP server is available.");
             }
         } else {
+            System.out.println("Invalid Token. Please use 'refresh' or 'login' to get new valid tokens.");
             return;
         }
     }
@@ -431,6 +437,7 @@ public class Client {
 
             // The output from the server is only the ROLE as a string so the builder can be returned in string form
             return strBuilder.toString();
+
         } catch (IOException exception) {
             // This is an unusual outcome but the protocol has to handle unexpected behavior from unreliable networks
             System.out.println("Role Request Unsuccessful. Please contact your administrator.");
@@ -438,10 +445,15 @@ public class Client {
         }
     }
 
-    // This function is responsible for the display of relevant user information
+    // This function is responsible for the display of information pertaining to a selected download version
+    // In the event that the user provides erroneous or 'fuzzy' data, the function will print a polite message
+    // pertaining to the incorrect input and the 'versions' command, which the user can utilize to learn the appropriate
+    // version numbers
     public void getDownloadInfo() throws MalformedURLException, IOException {
 
+        // Wrapper which handles token presence detection
         if (checkToken()) {
+            // General handling for a wide berth of potential exceptions including MalformedURL and IO
             try {
                 String lookupVersion = " ";
 
@@ -449,14 +461,17 @@ public class Client {
                 System.out.println("Please input the number of the version for which you would like information (ex. 1.0): ");
                 lookupVersion = scanner.nextLine();
 
+                // Version validity check. This will route users to the aforementioned advice and error read
                 if (checkVersionAgainstAvailableVersions(lookupVersion)) {
                     URL url = new URL(this.serverAddress + "/download/info/" + lookupVersion);
 
+                    // Simple OAuth-moderated GET Request
                     HttpURLConnection http = (HttpURLConnection) url.openConnection();
                     http.setRequestMethod("GET");
                     http.setRequestProperty("Accept", "application/json");
                     http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
 
+                    // Intake of Incoming Data
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
                     StringBuilder strBuilder = new StringBuilder();
 
@@ -466,14 +481,18 @@ public class Client {
                     }
 
                     HashMap<String, String> downloadMap = new HashMap<>();
+                    // As data comes in string form, extraneous punctuation must be removed, regex works well
                     String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
 
+                    //  HashMap is populated with KV pairs using further processed strings
                     for (String str : stringArr) {
                         downloadMap.put(str.substring(0, str.indexOf(":")).replaceAll("\"", ""), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
                     }
 
                     bufferedReader.close();
                     
+                    // Handler for response code. If successful, user receives a nice message with info about the requested download
+                    // If unsuccessful, user receives a polite message with advice on how to determine server availability
                     if (http.getResponseCode() == 200) {
                         System.out.println("Version " + downloadMap.get("version") + " is " + downloadMap.get("size") + "Mb and originates from the S3MP server at URL " + downloadMap.get("URL"));
                     } else {
@@ -485,26 +504,34 @@ public class Client {
                     System.out.println("Invalid Version Number Provided. Please utilize the 'versions' command to observe available core software versions on the server.");
                     return;
                 }
-
+            // Verbose, human-readable exception handling
             } catch (IOException exception) {
                 System.out.println("Request Unsuccessful. Please utilize the 'ping' command to determine if S3MP server is available.");
             }
         } else {
+            System.out.println("Invalid Token. Please use 'refresh' or 'login' to get new valid tokens.");
             return;
         }
     }
 
+    // This function handles the detection of corrupted downloads, provided a user suspects that their core software download
+    // is corrupted. While it uses three metrics (Origin URL, SHA256 hash, and File size), the function does not reveal what methods
+    // of evaluation are being employed to determine download integrity and accuracy. Users only need to know if the download is accurate or not.
     public void validateDownload() throws IOException, NoSuchAlgorithmException {
         
+        // Wrapper which handles token presence detection
         if (checkToken()) {
+            // General handling for a wide berth of potential exceptions including MalformedURL and IO
             try {
                 URL url = new URL(this.serverAddress + "/download/validate/" + this.currentCoreSoftwareVersion);
 
+                // Simple OAuth-moderated GET Request
                 HttpURLConnection http = (HttpURLConnection) url.openConnection();
                 http.setRequestMethod("GET");
                 http.setRequestProperty("Accept", "application/json");
                 http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
 
+                // Intake of incoming data
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
                 StringBuilder strBuilder = new StringBuilder();
 
@@ -514,18 +541,25 @@ public class Client {
                 }
 
                 HashMap<String, String> validationMap = new HashMap<>();
+                // As data comes in string form, extraneous punctuation must be removed, regex works well
                 String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
 
+                //  HashMap is populated with KV pairs using further processed strings
                 for (String str : stringArr) {
                     validationMap.put(str.substring(0, str.indexOf(":")).replaceAll("\"", ""), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
                 }
 
                 bufferedReader.close();
 
+                // The next three lines of code are a standard Java method of implementing a SHA256 hash
+                // This SHA256 implementation comes from: https://www.baeldung.com/sha-256-hashing-java
                 MessageDigest digest = MessageDigest.getInstance("SHA-256");
                 byte[] encodedhash = digest.digest(this.currentCoreSoftware.getBytes(StandardCharsets.UTF_8));
+                // This is powered by a helper function described below
                 String hash = bytesToHex(encodedhash);
 
+                // Handler for response code. If the core software installation present is valid(not corrupt), the user receives a nice message about their installation
+                // However, if the installation is invalid/corrupt, the user is advised to check with their system administrator
                 if (http.getResponseCode() == 200) {
                     if (this.coreSoftwareUrl.equals(validationMap.get("URL")) && hash.equals(validationMap.get("Hash")) && this.coreSoftwareSize.equals(Double.valueOf(validationMap.get("Size")).doubleValue())) {
                         System.out.println("Current Installation is Valid. No Action is Required.");
@@ -533,37 +567,52 @@ public class Client {
                         System.out.println("Current Installation may be Invalid. Recommended Action: Check with Administrator");
                     }
 
+                // If the request fails, give a generic message and advise users to check S3MP server availability
                 } else {
                     System.out.println("Request Unsuccessful. Please utilize the 'ping' command to determine if S3MP server is available.");
                 }
 
                 http.disconnect();
-
+            // Verbose, human-readable exception handling
             } catch (IOException exception) {
                 System.out.println("Request Unsuccessful. Please utilize the 'ping' command to determine if S3MP server is available.");
             }
         } else {
+            System.out.println("Invalid Token. Please use 'refresh' or 'login' to get new valid tokens.");
             return;
         }
     }
 
+    // This Quality of Life function enables users to display information about their current core software installation.
+    // Technically the same information can be retrieved from the getDownloadInfo function but this specific function
+    // does not require the users to know their core software version ahead of time
+    // Importantly, 'check' also provides users with the version of S3MP being run on the server. This can be used for admin
+    // configuration without authentication but could be split into a separate more secure function in future iterations if security concerns arise since
+    // the function is not secured by tokens. However, no user input travels with the request so SQL injections and such
+    // are not the main concern, more so potentially exposing the server S3MP verion info and local core software info to unauthorized
+    // parties
     public void checkInstalledVersion() throws MalformedURLException, IOException {
 
         try {
             URL url = new URL(this.serverAddress + "/check");
 
+            // Simple GET request, no OAuth
             HttpURLConnection http = (HttpURLConnection) url.openConnection();
             http.setRequestMethod("GET");
             http.setRequestProperty("Accept", "application/json");
-
+            
+            // Intake of Incoming Data
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
             StringBuilder strBuilder = new StringBuilder();
 
+            // Incoming Data will only be comprised of the S3MP server version number
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 strBuilder.append(line);
             }
 
+            // Handler for response code, if successful, local installation info and the servers S3MP version
+            // If unsuccessful, it will display a generic message about an unsuccessful request and using 'ping' for server availability checking
             if (http.getResponseCode() == 200) {
                 System.out.println("The current installed core software version is " + this.currentCoreSoftwareVersion);
                 System.out.println("   File Size: " + this.coreSoftwareSize + "Mb || Origin URL: " + this.coreSoftwareUrl);
@@ -573,19 +622,24 @@ public class Client {
             }
 
             http.disconnect();
-
+        // Verbose, human-readable exception handling
         } catch (IOException exception) {
-            exception.printStackTrace();
             System.out.println("Request Unsuccessful. Please utilize the 'ping' command to determine if S3MP server is available.");
         }
     }
 
+    // This function is responsible for the donwload of a target core software version. In this implementation, the software is downloaded
+    // as a stream of octets and is saved locally as a .txt file. This is currently a mocked process to display the ability of the protocol
+    // to download a file from the server in the form of a stream of octets. However, in a genuine implementation, it is likely that
+    // implementation specific changes would have to be made to address different situational requirements
     public void initiateDownload() throws MalformedURLException, IOException {
 
+        // Wrapper which handles token presence detection
         if (checkToken()) {
             try {
                 String downloadVersion = " ";
 
+                // Prompt for user to input desired core software version
                 System.out.println("");
                 System.out.println("Please input the number of the version which you would like to download (ex. 1.0): ");
                 downloadVersion = scanner.nextLine();
@@ -595,11 +649,13 @@ public class Client {
 
                     URL url = new URL(this.serverAddress + "/download/initialize/" + downloadVersion);
 
+                    // Simple OAuth-moderated GET request
                     HttpURLConnection http = (HttpURLConnection) url.openConnection();
                     http.setRequestMethod("GET");
                     http.setRequestProperty("Accept", "application/json");
                     http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
 
+                    // Intake of Incoming Data
                     BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
                     StringBuilder strBuilder = new StringBuilder();
 
@@ -612,16 +668,24 @@ public class Client {
                         System.out.println("File Writing Unsuccessful. Please try again.");
                     }
 
+                    // Write the incoming data to a .txt file and store in the working directory
                     BufferedWriter out = new BufferedWriter(new FileWriter("software.txt"));
 
                     try {
+
                         out.write(strBuilder.toString());
+                    // In case the file writing encounters an error
                     } catch (IOException ioException) {
-                        System.out.println("File Writing Unsuccessful. Please try again.");
+
+                        System.out.println("File Writing Unsuccessful. Please attempt the download again.");
+
+                    // Close the FileWriter
                     } finally {
                         out.close();
                     }
 
+                    // Once the core software is downloaded successfully, the state is updated to resemble the new software present
+                    // in the client's environment
                     System.out.println("Software downloaded successfully. Please check the directory from which you are running this client for the download.");
                     this.currentCoreSoftwareVersion = downloadVersion;
                     HashMap<String, String> downloadInfoMap = localInstallationPostDownloadInformationUpdate(downloadVersion);
@@ -631,109 +695,145 @@ public class Client {
 
                     http.disconnect();
 
+                // In case the user provides an invalid version number or generally invalid input
                 } else {
                     System.out.println("Invalid Version Number Provided. Please utilize the 'versions' command to observe available core software versions on the server.");
                     return;
                 }
-
+            // Verbose, human-readable exception handling
             } catch (IOException exception) {
                 System.out.println("Request Unsuccessful. Please utilize the 'ping' command to determine if S3MP server is available.");
             }
         } else {
+            System.out.println("Invalid Token. Please use 'refresh' or 'login' to get new valid tokens.");
             return;
         }
     }
 
+    // This helper function grabs information about a newly downloaded core software package. It is separated from the file download
+    // to reduce the likelihood of erroneous information transfer. This request is OAuth-authenticated and is not available for users
+    // to utilize manually.
     private HashMap<String, String> localInstallationPostDownloadInformationUpdate(String downloadVersion) throws IOException {
 
-        try {
-            URL url = new URL(this.serverAddress + "/download/info/" + downloadVersion);
+        // Wrapper which handles token presence detection
+        if (checkToken()) {
+            try {
+                URL url = new URL(this.serverAddress + "/download/info/" + downloadVersion);
 
-            HttpURLConnection http = (HttpURLConnection) url.openConnection();
-            http.setRequestMethod("GET");
-            http.setRequestProperty("Accept", "application/json");
-            http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+                // Simple OAuth-moderated GET Request
+                HttpURLConnection http = (HttpURLConnection) url.openConnection();
+                http.setRequestMethod("GET");
+                http.setRequestProperty("Accept", "application/json");
+                http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
 
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
-            StringBuilder strBuilder = new StringBuilder();
+                // Intake of Incoming Data
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+                StringBuilder strBuilder = new StringBuilder();
 
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                strBuilder.append(line);
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    strBuilder.append(line);
+                }
+
+                HashMap<String, String> downloadMap = new HashMap<>();
+                // As data comes in string form, extraneous punctuation must be removed, regex works well
+                String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
+
+                //  HashMap is populated with KV pairs using further processed strings
+                for (String str : stringArr) {
+                    downloadMap.put(str.substring(0, str.indexOf(":")).replaceAll("\"", ""), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
+                }
+
+                bufferedReader.close();
+
+                return downloadMap;
+            // Verbose, human-readable exception handling advising user to consult admin, due to the fact that the user would not have known
+            // this function were to be running, as they did not trigger it
+            } catch (IOException ioException) {
+                System.out.println("Download Retrieval Information Update Failed. Please contact your administrator.");
+                return new HashMap<String, String>();
             }
-
-            HashMap<String, String> downloadMap = new HashMap<>();
-            String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
-
-            for (String str : stringArr) {
-                downloadMap.put(str.substring(0, str.indexOf(":")).replaceAll("\"", ""), (str.substring(str.indexOf(":") + 1)).replaceAll("\"", ""));
-            }
-
-            bufferedReader.close();
-
-            return downloadMap;
-        } catch (IOException ioException) {
-            System.out.println("Download Retrieval Information Update Failed. Please contact your administrator.");
-            return new HashMap<String, String>();
+        } else {
+            System.out.println("Invalid Token. Please use 'refresh' or 'login' to get new valid tokens.");
+            return new HashMap<>();
         }
     }
 
+    // This helper function is responsible for checking if user input is valid according to the core software versions stored on the
+    // server. It interprets strictly so '1' and '1.0' would be considered 'invalid' and 'valid' version inputs respectively. In future
+    // versions of S3MP, it would be a nice quality of life improvement for the validity check to be more forgiving while still
+    // handling user input appropriately. This function is not available to users directly.
     private boolean checkVersionAgainstAvailableVersions(String version) throws MalformedURLException, IOException {
 
         boolean validVersion = false;
 
-        try {
-            if (this.userRole == null) {
-                this.userRole = getRole();
-            }
-
-            URL url = new URL(this.serverAddress + "/versions/" + this.userRole);
-
-            HttpURLConnection http = (HttpURLConnection) url.openConnection();
-            http.setRequestMethod("GET");
-            http.setRequestProperty("Accept", "application/json");
-            // A valid access token is required for access to this resource
-            http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
-            
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
-
-            StringBuilder strBuilder = new StringBuilder();
-
-            // this loop receives the incoming information from the server and encodes it as a string.
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                strBuilder.append(line);
-            }
-
-            ArrayList<String> versionList = new ArrayList<>();
-            String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
-
-            for (String str : stringArr) {
-                if (str.contains("versionNumber")) {
-                    versionList.add(str.substring(str.indexOf(":") + 1));
+        // Wrapper which handles token presence detection
+        if (checkToken()) {
+            try {
+                // If the user role is not already established locally, get it from the server
+                if (this.userRole == null) {
+                    this.userRole = getRole();
                 }
+
+                URL url = new URL(this.serverAddress + "/versions/" + this.userRole);
+
+                HttpURLConnection http = (HttpURLConnection) url.openConnection();
+                http.setRequestMethod("GET");
+                http.setRequestProperty("Accept", "application/json");
+                // A valid access token is required for access to this resource
+                http.setRequestProperty("Authorization", "Bearer " + this.accessToken);
+                
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(http.getInputStream()));
+
+                StringBuilder strBuilder = new StringBuilder();
+
+                // this loop receives the incoming information from the server and encodes it as a string.
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    strBuilder.append(line);
+                }
+
+                // ArrayList to contain all versions on server (visibility depending on role).
+                ArrayList<String> versionList = new ArrayList<>();
+                String[] stringArr = strBuilder.toString().replaceAll("[\\{\\}\\s]", "").split(",");
+
+                for (String str : stringArr) {
+                    if (str.contains("versionNumber")) {
+                        versionList.add(str.substring(str.indexOf(":") + 1));
+                    }
+                }
+
+                // boolean determined by presence or absence of version string in version list.
+                validVersion = versionList.contains(version);
+
+                bufferedReader.close();
+
+                return validVersion;
+
+            // Exception advising admin consultation as users would not know that this function has fired, given that they have not
+            // triggered it
+            } catch (Exception exception) {
+                System.out.println("Version Comparison Check Failed. Please contact your administrator.");
+                return validVersion;
             }
-
-            validVersion = versionList.contains(version);
-
-            bufferedReader.close();
-
-            return validVersion;
-
-        } catch (Exception exception) {
-            System.out.println("Version Comparison Check Failed. Please contact your administrator.");
-            return validVersion;
+        } else {
+            System.out.println("Invalid Token. Please use 'refresh' or 'login' to get new valid tokens.");
+            return false;
         }
     }
 
+    // Helper function which translates a string from a token POST request to a token hashmap.
+    // This function is not available to users.
     public HashMap<String, String> convertTokenResponseToHashMap(String response) {
 
         HashMap<String, String> tokenMap = new HashMap<>();
 
+        // Removal of certain punctuation from input string
         String[] stringArr = response.replaceAll("[\\{\\}\\s]", "").split(",");
 
         String[] keyValueStringArray;
 
+        // Enhanced for loop which splits remaining strings into KV pairs for the hashmap
         for (String str : stringArr) {
             keyValueStringArray = str.split(":");
             tokenMap.put(keyValueStringArray[0].replaceAll("\"", ""), keyValueStringArray[1].replaceAll("\"", ""));
@@ -742,6 +842,9 @@ public class Client {
         return tokenMap;
     }
 
+    // Necessary helper function which translates a byte array hash to a hexadecimal string.
+    // This function is not available to users.
+    // This boilerplate function comes from: https://www.baeldung.com/sha-256-hashing-java
     private static String bytesToHex(byte[] hash) {
         StringBuilder hexString = new StringBuilder(2 * hash.length);
         for (int i = 0; i < hash.length; i++) {
@@ -754,6 +857,8 @@ public class Client {
         return hexString.toString();
     }
 
+    // Simple helper function which checks if the token is in its initial state of "No Token".
+    // Wraps the response to unauthorized access attempts in human readable feedback which provides meaningful/actionable input to users
     private Boolean checkToken() {
         if ((!"No Token".equals(this.accessToken)) || (!"No Token".equals(this.refreshToken))) {
             return true;
@@ -763,6 +868,9 @@ public class Client {
         }
     }
 
+    // This simple function provides users with the ability to list all v1 S3MP functions and some brief descriptions.
+    // Can be used with or without authentication/authorization so users can learn the commands regardless of application state
+    // Users are advised to utilize this function via the welcome prompt.
     private void printCommandsAndDescriptions() {
         System.out.println(" ");
         System.out.println("-----------------------------------Commands--------------------------------------");
