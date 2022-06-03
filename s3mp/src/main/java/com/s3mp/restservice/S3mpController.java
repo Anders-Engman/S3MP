@@ -2,6 +2,7 @@ package com.s3mp.restservice;
 
 // S3MPController.java
 // Author: Anders Engman
+// Date: 6/3/22
 // Description: This controller handles the RESTful functionality which powers S3MP on the server side. While some
 //				permissions and data processing work is done here, the server implementation is fairly lightweight.
 

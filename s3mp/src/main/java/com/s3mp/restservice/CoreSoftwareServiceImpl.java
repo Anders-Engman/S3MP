@@ -1,5 +1,11 @@
 package com.s3mp.restservice;
 
+// CoreSoftwareServiceImpl.java
+// Author: Anders Engman
+// Date: 6/3/22
+// Implementation of Core Software Service. Provides functionality for searching for software updates.
+// This queries the db using the core software repository class
+
 import java.util.Optional;
 
 import com.s3mp.sqlite.CoreSoftware;

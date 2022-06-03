@@ -1,5 +1,10 @@
 package com.s3mp.sqlite;
 
+// CoreSoftware.java
+// Author: Anders Engman
+// Date: 6/3/22
+// Entity class pertaining to the Core Software Table.
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;

@@ -1,5 +1,11 @@
 package com.s3mp.config;
 
+// OAuthConfiguration.java
+// Author: Anders Engman
+// Date: 6/3/22
+// This grants access to the OAuth clients. This is hardcoded so that the only OAuth client configured is s3mp client id.
+// Much of this file is standard for implementations of OAuth using Spring Boot.
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -43,6 +49,7 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
         this.userService = userService;
     }
 
+    // This sets the Oauth token requirements to those found in the application.properties file
     @Override
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
         clients.inMemory()

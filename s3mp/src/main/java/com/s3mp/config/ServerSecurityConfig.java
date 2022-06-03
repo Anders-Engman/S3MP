@@ -1,5 +1,11 @@
 package com.s3mp.config;
 
+// ServerSecurityConfig.java
+// Author: Anders Engman
+// Date: 6/3/22
+// This links together the OAuth user service with the authentication provider.
+// It also sets the password encoder so that passwords are encrypted in the db.
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

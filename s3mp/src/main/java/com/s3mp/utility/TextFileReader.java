@@ -1,5 +1,11 @@
 package com.s3mp.utility;
 
+// TextFileReader.java
+// Author: Anders Engman
+// Date: 6/3/22
+// This class reads static files from the resources directory. This is used to stream txt files as mocked core software
+// downloads.
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;

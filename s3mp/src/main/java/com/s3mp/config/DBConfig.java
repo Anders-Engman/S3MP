@@ -1,25 +1,25 @@
 package com.s3mp.config;
 
 import java.util.Properties;
-    
 import javax.sql.DataSource;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
-// import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 
+// DBConfig.java
+// Author: Anders Engman
+// Date: 6/3/22
 // This Config for SQLite was provided as boilerplate code in a tutorial on Baeldung.com found here: https://www.baeldung.com/spring-boot-sqlite
+// This file is a standard implementation of a SQLite configuration file in Spring Boot.
+// This configuration links the SQLite db to the rest of the codebase.
 
 @Configuration
-// @EnableJpaRepositories(basePackages = "com.")
-// @PropertySource("application.properties")
 public class DBConfig {
     
         @Autowired
@@ -61,7 +61,6 @@ public class DBConfig {
     
     @Configuration
     @Profile("sqlite")
-    // @PropertySource("classpath:application.properties")
     class SqliteConfig {
     }
 }

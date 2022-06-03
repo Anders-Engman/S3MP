@@ -1,5 +1,10 @@
 package com.s3mp.config;
 
+// OAuthUserService.java
+// Author: Anders Engman
+// Date: 6/3/22
+// This service handles the OAuth token requests and validates the existence of the user in the database.
+
 import com.s3mp.sqlite.User;
 import com.s3mp.restservice.UserRepository;
 import org.springframework.security.core.GrantedAuthority;

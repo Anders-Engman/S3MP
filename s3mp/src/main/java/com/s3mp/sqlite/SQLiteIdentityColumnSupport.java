@@ -3,6 +3,10 @@ package com.s3mp.sqlite;
 import org.hibernate.MappingException;
 import org.hibernate.dialect.identity.IdentityColumnSupportImpl;
 
+// SQLiteIdentityColumnSupport.java
+// Author: Anders Engman
+// Date: 6/3/22
+// Enables Hibernate to properly handle @Id columns
 // This custom SQLite Identity Column Support was provided as boilerplate code in a tutorial on Baeldung.com found here: https://www.baeldung.com/spring-boot-sqlite
 
 public class SQLiteIdentityColumnSupport extends IdentityColumnSupportImpl {

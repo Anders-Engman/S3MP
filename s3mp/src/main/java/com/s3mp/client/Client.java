@@ -2,13 +2,13 @@ package com.s3mp.client;
 
 // Client.java
 // Author: Anders Engman
+// Date: 6/3/22
 // Description: this file independently covers all the functional requirements of a functioning S3MP client CLI application.
 //              It contains a variety of core functions such as download, validateDownload, and versions as well as
 //              some Quality of Life functions such as "commands", "ping", and "check" amongst others.
 // REQUIREMENTS FULFILLED:
 //      STATEFUL: 
-//      UI:
-//      CLIENT: 
+//      UI: This file generates the UI with which the user interacts
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -43,7 +43,8 @@ import java.security.NoSuchAlgorithmException;
 public class Client {
 
     private Scanner scanner;
-    private String serverAddress;
+    private String simpleServerAddress;
+    private String fullServerAddress;
     private String accessToken = "No Token";
     private String refreshToken = "No Token";
     private String userRole = null;
@@ -52,50 +53,20 @@ public class Client {
     private String coreSoftwareUrl;
     private Double coreSoftwareSize;
     private String username;
-    private Integer portNumber;
-    private String ipAddress;
+    private String s3mpVersion;
+    private String host;
+    private int portNumber = 9100;
 
-    public Client(String serverAddress, String s3mpVersion) throws NoSuchAlgorithmException, URISyntaxException {
+    public Client(String s3mpVersion) throws NoSuchAlgorithmException, URISyntaxException {
 
         scanner = new Scanner(System.in);
-
         String userInput = " ";
-        System.out.println("\n");
-        System.out.println("Please provide an IP address or Hostname with which to connect to the S3MP server:");
-        boolean validConnectionCriteria = false;
-
-        // CLIENT:
-        // This while loop provides users the option to specify port numbers on which to connect.
-        while (!validConnectionCriteria) {
-            userInput = scanner.nextLine();
-
-            if ("Quit".equalsIgnoreCase(userInput)) {
-                return;
-            }
-
-            if ("127.0.0.1".equals(userInput) || "https://localhost:9100".equals(userInput)) {
-                    validConnectionCriteria = true;
-                    // Setting basic class variables which hold information about the theoretical locally installed core software
-                    if ("127.0.0.1".equals(userInput)) {
-                        this.ipAddress = userInput;
-                        this.serverAddress = "https://localhost:9100/" + s3mpVersion;
-                    } else {
-                        this.ipAddress = "127.0.0.1";
-                        this.serverAddress = userInput + "/" + s3mpVersion;
-                    }
-                    this.portNumber = 9100;
-                    this.coreSoftwareUrl = this.serverAddress + "/download/initialize/" + currentCoreSoftwareVersion;
-                    this.coreSoftwareSize = 325.22;
-                    System.out.println("Connection Configuration Successful. Welcome to S3MP!");
-                    // System.out.println("\n");
-            } else {
-                System.out.println("\n");
-                System.out.println("Please provide a valid IP Address or Hostname.");
-                System.out.println("Reminder: S3MP is configured to run on 'https://localhost:9100' or '127.0.0.1' port 9100, unless otherwise configured by your administrator.");
-                System.out.println("Alternately, you may enter 'quit' to exit this client.");
-            }
-
-        }
+        this.s3mpVersion = s3mpVersion;
+        this.host = "localhost";
+        this.simpleServerAddress = "https://" + this.host + ":" + this.portNumber;
+        this.fullServerAddress = this.simpleServerAddress + "/" + this.s3mpVersion;
+        this.coreSoftwareUrl = this.fullServerAddress + "/download/initialize/" + currentCoreSoftwareVersion;
+        this.coreSoftwareSize = 325.22;
 
         // Print the welcome prompt
         System.out.println("\n");
@@ -129,7 +100,7 @@ public class Client {
                 } else if ("quit".equalsIgnoreCase(userInput)) {
                     break;
                 } else if ("ping".equalsIgnoreCase(userInput)) {
-                    Boolean serverAvailable = pingServer(this.ipAddress, 9100, 2000);
+                    Boolean serverAvailable = pingServer(this.host, 9100, 2000);
 
                     if (serverAvailable) {
                         System.out.println("S3MP Server Available.");
@@ -148,6 +119,8 @@ public class Client {
                     refreshToken();
                 } else if ("commands".equalsIgnoreCase(userInput)) {
                     printCommandsAndDescriptions();
+                } else if ("address".equalsIgnoreCase(userInput)) {
+                    setServerAddress();
                 }
 
             } catch (IOException ioException) {
@@ -172,7 +145,7 @@ public class Client {
                     this.userRole = getRole();
                 }
 
-                URL url = new URL(this.serverAddress + "/versions/" + this.userRole);
+                URL url = new URL(this.fullServerAddress + "/versions/" + this.userRole);
 
                 HttpURLConnection http = (HttpURLConnection) url.openConnection();
                 http.setRequestMethod("GET");
@@ -234,7 +207,7 @@ public class Client {
                     this.userRole = getRole();
                 }
 
-                URL url = new URL(this.serverAddress + "/latest/" + this.currentCoreSoftwareVersion + "/" + this.userRole);
+                URL url = new URL(this.fullServerAddress + "/latest/" + this.currentCoreSoftwareVersion + "/" + this.userRole);
 
                 HttpURLConnection http = (HttpURLConnection) url.openConnection();
                 http.setRequestMethod("GET");
@@ -316,7 +289,7 @@ public class Client {
             password = scanner.nextLine();
 
             // This endpoint handles all things OAuth. (access_token and refresh_token)
-            URL url = new URL("https://localhost:9100/oauth/token");
+            URL url = new URL(this.simpleServerAddress + "/oauth/token");
             HttpURLConnection http = (HttpURLConnection)url.openConnection();
             // Required auth header for token receipt.
             String authHeader = "Basic " + new String(Base64.getEncoder().encode("s3mp:secret".getBytes()));
@@ -389,7 +362,7 @@ public class Client {
     public void refreshToken() throws IOException {
         try {
             // Endpoint for all OAuth related functions
-            URL url = new URL("https://localhost:9100/oauth/token");
+            URL url = new URL(this.simpleServerAddress + "/oauth/token");
             HttpURLConnection http = (HttpURLConnection) url.openConnection();
             // Similarly to the Login function, all of the configuration for this http request must be adherent
             // to OAuth standards, hence the encoding and formatting.
@@ -451,7 +424,7 @@ public class Client {
 
         try {
             // Roles Endpoint
-            URL url = new URL(this.serverAddress + "/roles/" + this.username);
+            URL url = new URL(this.fullServerAddress + "/roles/" + this.username);
 
             // Simple HTTP message configuration, though it still takes an access token as the endpoint is protected
             // NOTE: This helper function relies on its position within larger functions for the detection of invalid
@@ -501,7 +474,7 @@ public class Client {
 
                 // Version validity check. This will route users to the aforementioned advice and error read
                 if (checkVersionAgainstAvailableVersions(lookupVersion)) {
-                    URL url = new URL(this.serverAddress + "/download/info/" + lookupVersion);
+                    URL url = new URL(this.fullServerAddress + "/download/info/" + lookupVersion);
 
                     // Simple OAuth-moderated GET Request
                     HttpURLConnection http = (HttpURLConnection) url.openConnection();
@@ -561,7 +534,7 @@ public class Client {
         if (checkToken()) {
             // General handling for a wide berth of potential exceptions including MalformedURL and IO
             try {
-                URL url = new URL(this.serverAddress + "/download/validate/" + this.currentCoreSoftwareVersion);
+                URL url = new URL(this.fullServerAddress + "/download/validate/" + this.currentCoreSoftwareVersion);
 
                 // Simple OAuth-moderated GET Request
                 HttpURLConnection http = (HttpURLConnection) url.openConnection();
@@ -632,7 +605,7 @@ public class Client {
     public void checkInstalledVersion() throws MalformedURLException, IOException {
 
         try {
-            URL url = new URL(this.serverAddress + "/check");
+            URL url = new URL(this.fullServerAddress + "/check");
 
             // Simple GET request, no OAuth
             HttpURLConnection http = (HttpURLConnection) url.openConnection();
@@ -685,7 +658,7 @@ public class Client {
                 // This wrapper protects the system against invalid version numbers, notifies users of incorrect inputs
                 if (checkVersionAgainstAvailableVersions(downloadVersion)) {
 
-                    URL url = new URL(this.serverAddress + "/download/initialize/" + downloadVersion);
+                    URL url = new URL(this.fullServerAddress + "/download/initialize/" + downloadVersion);
 
                     // Simple OAuth-moderated GET request
                     HttpURLConnection http = (HttpURLConnection) url.openConnection();
@@ -756,7 +729,7 @@ public class Client {
         // Wrapper which handles token presence detection
         if (checkToken()) {
             try {
-                URL url = new URL(this.serverAddress + "/download/info/" + downloadVersion);
+                URL url = new URL(this.fullServerAddress + "/download/info/" + downloadVersion);
 
                 // Simple OAuth-moderated GET Request
                 HttpURLConnection http = (HttpURLConnection) url.openConnection();
@@ -813,7 +786,7 @@ public class Client {
                     this.userRole = getRole();
                 }
 
-                URL url = new URL(this.serverAddress + "/versions/" + this.userRole);
+                URL url = new URL(this.fullServerAddress + "/versions/" + this.userRole);
 
                 HttpURLConnection http = (HttpURLConnection) url.openConnection();
                 http.setRequestMethod("GET");
@@ -930,7 +903,30 @@ public class Client {
         System.out.println(" ");
     }
 
+    // CLIENT: this function enables users to set the server address to a custom IP or Hostname.
+    // Unlike much of the design philosophy of the rest of the client, this function can enable users to break the application
+    // provided they are not mindful of the correctness of their input. However, the same function can be called to fix any issues
+    // caused by erroneous input. Additionally, this function is available outside of an authenticated/authorized session.
+    private void setServerAddress() {
+        String newServerAddress = "";
+        System.out.println("\n");
+        System.out.println("Please input a new server address (Hostname or IP address) or 'default' for the default hostname");
+        System.out.println("Note: malformed addresses can cause the S3MP client application to behave unexpectedly / not function.");
+        System.out.println("Malformed addresses would, for example, include if 'https://' was left out of 'https://localhost:'");
+        System.out.println("or if a trailing slash was added such as 'localhost/'.");
+        System.out.println("Since S3MP runs on port 9100, please do not include the port in your custom address.");
+        newServerAddress = scanner.nextLine();
+
+        if (newServerAddress.equalsIgnoreCase("default")) {
+            newServerAddress = "localhost";
+        }
+
+        this.host = newServerAddress;
+        this.simpleServerAddress = "https://" + this.host + ":" + this.portNumber;
+        this.fullServerAddress = this.simpleServerAddress + "/" + this.s3mpVersion;
+    }
+
     public static void main(String[] args) throws Exception {
-        Client client = new Client("https://localhost:", "v1");
+        Client client = new Client("v1");
     }
 }

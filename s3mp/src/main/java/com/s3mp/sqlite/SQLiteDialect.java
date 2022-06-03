@@ -1,12 +1,16 @@
 package com.s3mp.sqlite;
 
+// SQLiteDialect.java
+// Author: Anders Engman
+// Date: 6/3/22
+// This class extends the dialect provided by Hibernate to include all of the data types offered by SQLite
+// This SQLiteDialect is boilerplate though this iteration was provided in a tutorial on Baeldung.com found here: https://www.baeldung.com/spring-boot-sqlite
+
 import org.hibernate.dialect.Dialect;
 import org.hibernate.dialect.identity.IdentityColumnSupport;
 import java.sql.Types;
 
 import com.s3mp.sqlite.SQLiteIdentityColumnSupport;
-
-// This SQLiteDialect is boilerplate though this iteration was provided in a tutorial on Baeldung.com found here: https://www.baeldung.com/spring-boot-sqlite
 
 public class SQLiteDialect extends Dialect {
 
