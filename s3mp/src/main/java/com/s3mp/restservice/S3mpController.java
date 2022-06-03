@@ -121,15 +121,21 @@ public class S3mpController {
 		return map;
 	}
 
+	// This routing handles the 'getRoles' internal function, returning a single field 'role'. 
+	//		"Role:" using the path variable 'username', the db is queried for users, which are then filtered
+	// to return either the users role or 'Role Not Found"'
 	@GetMapping("/roles/{username}")
 	public String getRole(@PathVariable String username) {
 
 		String role = "Role Not Found";
 
+		// There may or may not be a match so this user is wrapped as an Optional
 		Optional<User> targetUser = null;
 
+		// Query DB for All Users
 		ArrayList<User> userList = (ArrayList<User>) userService.findAll();
 
+		// Using Java Streams, attempt to filter the users pulled from the db to the user that matches the username
 		try {
 			targetUser = userList.stream()
 					.filter(u -> u.getUsername().equals(username))
@@ -138,6 +144,7 @@ public class S3mpController {
 			System.out.println("Error Finding User");
 		}
 
+		// If the targetUser is found, assign the role accordingly
 		if (targetUser.isPresent()) {
 			role = targetUser.get().getRole();
 		}
@@ -145,20 +152,28 @@ public class S3mpController {
 		return role;
 	}
 
+	// This routing handles the 'validateDownload' function, returning three fields:
+	//		"Hash:" A SHA256 hash of the core software (or part of it). For example, this mocked system only uses a single line of the sample file
+	//		"Size:" A double representing the size of the file in megabytes. In a true implementation, this could be changed easily.
+	//		"URL:" A string representing the URL of origin from which the download was sourced
 	@GetMapping("/download/validate/{version}")
 	public Map<String, Object> validateDownload(@PathVariable String version) {
 
 		HashMap<String, Object> map = new HashMap<>();
 
+		// Pull all core software from the server
 		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
 
+		// Using Java Streams, find the desired core software version
 		CoreSoftware relevantCoreSoftware = currentSoftwareVersionsOnServer.stream()
 			.filter(coreSoftware -> version.equals(coreSoftware.getVersionNumber().toString()))
 			.findAny()
 			.orElse(null);
 
+		// Generate the hash using Guava
 		String sha256hex = Hashing.sha256().hashString(relevantCoreSoftware.getContents(), StandardCharsets.UTF_8).toString();
 
+		// Add KV pairs to HashMap
 		map.put("Hash", sha256hex);
 		map.put("Size", relevantCoreSoftware.getFileSize());
 		map.put("URL", "https://localhost:9100/v1/download/initialize/" + version);
@@ -166,18 +181,26 @@ public class S3mpController {
 		return map;
 	}
 
+	// This routing handles the 'info' function, returning four fields:
+	//		"version:" the version of the core software being queried about by the user
+	//		"software:" the mocked contents of the software package. In a genuine implementation, this could be the HEAD of the software or some other identifying aspect of the contents
+	//		"URL:" The URL of origin from which the core software package would be downloaded
+	//		"size:" the file sixe, a double representing megabytes in this implementation
 	@GetMapping("/download/info/{version}")
 	public Map<String, Object> initializeDownload(@PathVariable String version) {
 
 		HashMap<String, Object> map = new HashMap<>();
 
+		// Pull all core software from db
 		ArrayList<CoreSoftware> currentSoftwareVersionsOnServer = (ArrayList<CoreSoftware>) coreSoftwareService.findAll();
 
+		// Using Java Streams, filter for the desired core software package
 		CoreSoftware relevantCoreSoftware = currentSoftwareVersionsOnServer.stream()
 			.filter(coreSoftware -> version.equals(coreSoftware.getVersionNumber().toString()))
 			.findAny()
 			.orElse(null);
 		
+		// Pull desired data from core software object, return to client
 		map.put("version", relevantCoreSoftware.getVersionNumber());
 		map.put("software", relevantCoreSoftware.getContents());
 		map.put("URL", "https://localhost:9100/v1/download/initialize/" + version);
@@ -186,11 +209,18 @@ public class S3mpController {
 		return map;
 	}
 
+	// This routing is responsible for the download of core software, in the form of an octet stream
+	// As such, the product of the request is a stream containing the core software.
+	// For the purposes of this assignment, the data drawn for the stream is comprised of text files which consist of
+	// hundreds of lines of randomly generated alphanumeric characters.
 	@GetMapping("/download/initialize/{version}")
 	public ResponseEntity<InputStreamResource> streamFile(@PathVariable String version) throws IOException {
 
 		String filename;
 
+		// The filename being determined by request. In a genuine implementation this filename should likely be drawn
+		// from either a core software record or from a purpose-built db table containing relevant filenames for the
+		// various core software versions stored on the db
 		if ("1.0".equals(version)) {
 			filename = "software1.txt";
 		} else if ("1.1".equals(version)) {
@@ -201,13 +231,18 @@ public class S3mpController {
 			filename = "software4.txt";
 		}
 
+		// create an inputstream of the selected text file using the proprietary TextFileReader class
 		InputStream inputStream = new TextFileReader().readInTextFile("static/mocks/" + filename);
 
+		// For the content-length http header
 		int length = inputStream.available();
+		// Setting the mediatype http header
 		MediaType mediaType = MediaType.parseMediaType("application/octet-stream");
 
+		// Convert to an InputStreamResource for transit
 		InputStreamResource resource = new InputStreamResource(inputStream);
 
+		// Return properly prepared octet stream
 		return ResponseEntity.ok()
 			.contentType(mediaType)
 			.contentLength(length)
@@ -215,6 +250,8 @@ public class S3mpController {
 			.body(resource);
 	}
 
+	// Integral to the 'check' function, this routing returns the version of S3MP deployed on the server
+	// 'ServerVersion' is drawn from the application.properties file and could be updated there if desired.
 	@GetMapping("/check")
 	public String checkS3MPVersion() {
 

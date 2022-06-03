@@ -855,7 +855,7 @@ public class Client {
 
     // Necessary helper function which translates a byte array hash to a hexadecimal string.
     // This function is not available to users.
-    // This boilerplate function comes from: https://www.baeldung.com/sha-256-hashing-java
+    // This implementation of the function comes from: https://www.baeldung.com/sha-256-hashing-java
     private static String bytesToHex(byte[] hash) {
         StringBuilder hexString = new StringBuilder(2 * hash.length);
         for (int i = 0; i < hash.length; i++) {
@@ -912,7 +912,7 @@ public class Client {
         System.out.println("\n");
         System.out.println("Please input a new server address (Hostname or IP address) or 'default' for the default hostname");
         System.out.println("Note: malformed addresses can cause the S3MP client application to behave unexpectedly / not function.");
-        System.out.println("Malformed addresses would, for example, include if 'https://' was left out of 'https://localhost:'");
+        System.out.println("Malformed addresses would, for example, include if 'https://' was included such as 'https://localhost:'");
         System.out.println("or if a trailing slash was added such as 'localhost/'.");
         System.out.println("Since S3MP runs on port 9100, please do not include the port in your custom address.");
         newServerAddress = scanner.nextLine();
